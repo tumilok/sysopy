@@ -1,6 +1,0 @@
-1,5d0
-< jjj kkk
-< aaa
-< fff ccc
-< eee
-< bbb ggg

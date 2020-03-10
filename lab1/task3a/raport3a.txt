@@ -1,0 +1,144 @@
+Pomiary czasu realizacji podstawowych operacji będziemy korzystac
+sie z plikow o roznej ilosci elementow i o roznym stopniu podobienstwa
+(a.txt, b.txt, c.txt, d.txt, e.txt, f.txt)
+
+1. Porownanie par plikow:
+
+Dla uzyskania czasu porownania par plikow uzylem polecenie time
+
+1) Static library
+
+    plik1  a.txt   c.txt   e.txt
+    plik2  b.txt   d.txt   f.txt
+    real   0.008s  0.007s  0.007s
+    user   0.003s  0.005s  0.004s
+    sys    0.005s  0.002s  0.003s
+
+1) Shared library
+	
+    plik1  a.txt   c.txt   e.txt
+    plik2  b.txt   d.txt   f.txt
+    real   0.007s  0.007s  0.008s
+    user   0.005s  0.003s  0.003s
+    sys    0.003s  0.005s  0.005s
+
+1) Dynamic library
+	
+    plik1  a.txt   c.txt   e.txt
+    plik2  b.txt   d.txt   f.txt
+    real   0.008s  0.008s  0.008s
+    user   0.003s  0.005s  0.005s
+    sys    0.005s  0.003s  0.003s
+
+2. Zapisywanie blockow o roznych rozmiarach:
+
+Dla uzyskania czasu zapisywania blockow użylem biblioteki "time.h"
+
+1) Static library
+
+    plik1   plik2   time
+    a.txt   b.txt   0.000218s
+    c.txt   d.txt   0.000168s
+    e.txt   f.txt   0.000223s
+
+2) Shared library
+
+    plik1   plik2   time
+    a.txt   b.txt   0.000170s
+    c.txt   d.txt   0.000177s
+    e.txt   f.txt   0.000236s
+
+3) Dynamic library
+
+    plik1   plik2   time
+    a.txt   b.txt   0.000198s
+    c.txt   d.txt   0.000222s
+    e.txt   f.txt   0.000268s
+
+3. Usuniecie zaalokowanych blokow o roznych rozmiarach
+
+Dla uzyskania czasu usuniecia blockow uzylem biblioteki "time.h"
+
+1) Static library
+
+    plik1   plik2   time
+    a.txt   b.txt   0.000003s
+    c.txt   d.txt   0.000003s
+    e.txt   f.txt   0.000004s
+
+2) Shared library
+
+    plik1   plik2   time
+    a.txt   b.txt   0.000005s
+    c.txt   d.txt   0.000004s
+    e.txt   f.txt   0.000004s
+
+3) Dynamic library
+
+    plik1   plik2   time
+    a.txt   b.txt   0.000008s
+    c.txt   d.txt   0.000010s
+    e.txt   f.txt   0.000006s
+
+4. Na przemian  kilkakrotne dodanie i usuniecie zadanej liczby bloków
+
+dodanie a.txt:b.txt, usuniecie ich
+
+1) Static library
+
+    real:   0.008s
+    user:   0.003s
+    sys:    0.005s
+
+2) Shared library
+
+    real:   0.008s
+    user:   0.005s
+    sys:    0.003s
+
+3) Dynamic library
+
+    real:   0.008s
+    user:   0.005s
+    sys:    0.003s
+
+dodanie a.txt:b.txt, usuniecie ich, dodanie c.txt:d.txt, usuniecie ich
+
+1) Static library
+
+    real:   0.016s
+    user:   0.008s
+    sys:    0.005s
+
+2) Shared library
+
+    real:   0.016s
+    user:   0.011s
+    sys:    0.002s
+
+3) Dynamic library
+
+    real:   0.017s
+    user:   0.005s
+    sys:    0.008s
+
+dodanie a.txt:b.txt, usuniecie ich, dodanie c.txt:d.txt, usuniecie ich
+dodanie e.txt:f.txt usuniecie ich
+
+1) Static library
+
+    real:   0.021s
+    user:   0.010s
+    sys:    0.008s
+
+2) Shared library
+
+    real:   0.022s
+    user:   0.010s
+    sys:    0.009s
+
+3) Dynamic library
+
+    real:   0.022s
+    user:   0.010s
+    sys:    0.009s

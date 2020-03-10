@@ -1,5 +1,6 @@
 #include "comparison.h"
 
+// returns concatenation of two strings
 char *str_cat(const char *str1, const char *str2)
 {
     char *resstr = malloc(strlen(str1) + strlen(str2) + 1);
@@ -8,11 +9,13 @@ char *str_cat(const char *str1, const char *str2)
     return resstr;
 }
 
+// compares pair of file with diff command
 void compare_files(const char *fname1, const char *fname2)
 {
     system(str_cat("diff ", str_cat(fname1, str_cat(" ", str_cat(fname2, str_cat(" > ", FILENAME))))));
 }
 
+// counts block operatons in a temporary file
 int count_block_operations()
 {
     FILE *fp = fopen(FILENAME, "r");
@@ -43,6 +46,7 @@ int count_block_operations()
     return operations_count;
 }
 
+// initializes block of operations from tmp file
 char **init_block_operations()
 {
     FILE *fp = fopen(FILENAME, "r");
@@ -84,6 +88,7 @@ char **init_block_operations()
     return block;
 }
 
+// ads block of operations to array
 int add_operation_block(struct ArrayOfBlocks *array) {
     if (array == NULL)
     {
@@ -104,6 +109,7 @@ int add_operation_block(struct ArrayOfBlocks *array) {
     return length - 1;
 }
 
+// initializes array of operation blocks
 struct ArrayOfBlocks init_main_array()
 {
     struct ArrayOfBlocks array;
@@ -111,7 +117,8 @@ struct ArrayOfBlocks init_main_array()
     return array;
 }
 
-void print_array(struct ArrayOfBlocks *array)
+// prints array of operation blocks
+void print_arrays(struct ArrayOfBlocks *array)
 {
     if (array == NULL)
     {
@@ -123,15 +130,13 @@ void print_array(struct ArrayOfBlocks *array)
     {
         for (int j = 0; j < array -> main_array[i].block_length; j++)
         {
-            if (array -> main_array[i].block_array[j] != NULL)
-            {
-                printf("%s", array -> main_array[i].block_array[j]);
-            }
+            printf("%s", array -> main_array[i].block_array[j]);
         }
         printf("\n");
     }
 }
 
+// returns number of operations in a block
 int get_block_length(struct Block *block)
 {
     if (block == NULL)
@@ -151,6 +156,7 @@ int get_block_length(struct Block *block)
     return count_operations;
 }
 
+// deletes a given block of operations from array
 int delete_operation_block(struct ArrayOfBlocks *array, int index)
 {
     if (array == NULL)
@@ -175,6 +181,7 @@ int delete_operation_block(struct ArrayOfBlocks *array, int index)
     return EXIT_SUCCESS;
 }
 
+// deletes a given operation from given block
 int delete_operation(struct Block *block, int index)
 {
     if (block == NULL)

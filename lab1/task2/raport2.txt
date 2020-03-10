@@ -1,10 +1,10 @@
-Pomiary czasu realizacji podstawowych operacji będziemy korzystać 
-się z plików o różnej ilości elementów i o różnym stopniu podobienstwa
+Pomiary czasu realizacji podstawowych operacji będziemy korzystac
+sie z plikow o roznej ilosci elementow i o roznym stopniu podobienstwa
 (a.txt, b.txt, c.txt, d.txt, e.txt, f.txt)
 
-1. Porównanie par plików:
+1. Porownanie par plikow:
 
-Dla uzyskania czasu porównania par plików użyłem polecenie time
+Dla uzyskania czasu porownania par plikow uzylem polecenie time
 
     plik1  a.txt   c.txt   e.txt
     plik2  b.txt   d.txt   f.txt
@@ -12,25 +12,25 @@ Dla uzyskania czasu porównania par plików użyłem polecenie time
     user   0.005s  0.005s  0.005s
     sys    0.002s  0.002s  0.002s
 
-2. Zapisywanie blocków o różnych rozmiarach:
+2. Zapisywanie blockow o roznych rozmiarach:
 
-Dla uzyskania czasu zapisywania blocków użyłem biblioteki "time.h"
+Dla uzyskania czasu zapisywania blockow użylem biblioteki "time.h"
 
     plik1   plik2   time
     a.txt   b.txt   0.000154s
     c.txt   d.txt   0.000178s
     e.txt   f.txt   0.000234
 
-3. Usunięcie zaalokowanych bloków o różnych rozmiarach
+3. Usuniecie zaalokowanych blokow o roznych rozmiarach
 
-Dla uzyskania czasu usunięcia blocków użyłem biblioteki "time.h"
+Dla uzyskania czasu usuniecia blockow uzylem biblioteki "time.h"
 
     plik1   plik2   time
     a.txt   b.txt   0.000003s
     c.txt   d.txt   0.000003s
     e.txt   f.txt   0.000003s
 
-4. Na przemian  kilkakrotne dodanie i usunięcie zadanej liczby bloków
+4. Na przemian  kilkakrotne dodanie i usuniecie zadanej liczby bloków
 
 dodanie a.txt:b.txt, usuniecie ich
 
