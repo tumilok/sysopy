@@ -19,12 +19,11 @@ test_stat:
 
 	make compile
 
-	./main stat
+	./main ../ atime -30 maxdepth 10 stat
 
 	make clean_all
-	make clean
 
-test_ntfw:
+test_nftw:
 	mkdir dir1
 	mkdir dir1/dir2
 	mkdir dir1/dir2/dir3
@@ -37,10 +36,9 @@ test_ntfw:
 
 	make compile
 
-	./main nftw
+	./main ../ mtime -30 maxdepth 10 nftw
 
 	make clean_all
-	make clean
 
 clean_all:
 	make clean

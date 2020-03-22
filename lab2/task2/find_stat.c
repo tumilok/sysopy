@@ -63,12 +63,7 @@ void find_dir(char *fpath, int depth)
     closedir(dirp);
 }
 
-void stat_exec()
+void stat_exec(char *path)
 {
-    char* path = "../";
-    maxdepth = 10;
-    atime = 30;
-    asign = '-';
-
     find_dir(path, 1);
 }

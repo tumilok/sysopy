@@ -29,12 +29,7 @@ int file_info(const char *fpath, const struct stat *sb, int typeflag, struct FTW
     return 0;
 }
 
-void nftw_exec()
+void nftw_exec(char *path)
 {
-    char* path = "../";
-    maxdepth = 10;
-    mtime = 30;
-    msign = '-';
-
     nftw(path, file_info, 10, FTW_PHYS);
 }
