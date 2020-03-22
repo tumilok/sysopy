@@ -48,7 +48,7 @@ void dir_info_stat(char *fpath){
     DIR* dirp = opendir(fpath);
     if (dirp == NULL)
     {
-        printf("Cannot open directory\n");
+        printf("Error, cannot open directory %s\n", fpath);
         exit(EXIT_FAILURE);
     }
 
@@ -95,7 +95,7 @@ void dir_info_stat(char *fpath){
             exit(EXIT_FAILURE);
         }
         
-        if (S_ISDIR(buffer.st_mode) == 0)
+        if (S_ISDIR(buffer.st_mode))
         {
             if (strcmp(file -> d_name, ".") == 0 || strcmp(file -> d_name, "..") == 0)
             {
