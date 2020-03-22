@@ -10,29 +10,25 @@
 
 static int dir_info_nftw(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-    if (S_ISDIR(sb -> st_mode))
+    if (S_ISDIR(sb -> st_mode) != 0)
     {
-        pid_t pid_fork = fork();
-
-        if (pid_fork < 0)
+        pid_t child_pid = fork();
+        if (child_pid < 0)
         {
-            printf("Cannot fork\n");
+            printf("Error, while creating child process\n");
             exit(EXIT_FAILURE);
         }
-        else if(pid_fork == 0)
-        {
-            
-            // get process ID (PID) of the calling process
-            printf("DIRECTORY: %s, PID: %d\n", fpath, getpid());
+        else if(child_pid == 0)
+        {   
+            printf("Dir path: %s, PID: %d\n", fpath, getpid());
             
             // replace the current process image with a new process image
-            int exec_status = execlp("ls", "ls", "-l", fpath, NULL);
-            if (exec_status != 0)
+            if (execlp("ls", "ls", "-l", fpath, NULL) != 0)
             {
-                printf("Exec failed");
+                printf("Error, exec failed");
                 exit(EXIT_FAILURE);
             }
-            exit(exec_status);
+            exit(EXIT_SUCCESS);
         }
         else
         {
@@ -42,43 +38,41 @@ static int dir_info_nftw(const char *fpath, const struct stat *sb, int typeflag,
     return 0;
 }
 
-void dir_info_stat(char *path){
+void dir_info_stat(char *fpath){
 
-    if (path == NULL){
+    if (fpath == NULL)
+    {
         return;
     }
-    DIR* dir = opendir(path);
-    if (dir == NULL)
+
+    DIR* dirp = opendir(fpath);
+    if (dirp == NULL)
     {
         printf("Cannot open directory\n");
         exit(EXIT_FAILURE);
     }
 
     struct stat buffer;
-    lstat(path, &buffer);
-    if (S_ISDIR(buffer.st_mode))
+    lstat(fpath, &buffer);
+    if (S_ISDIR(buffer.st_mode) != 0)
     {
-        pid_t pid_fork = fork();
-
-        if (pid_fork < 0)
+        pid_t child_pid = fork();
+        if (child_pid < 0)
         {
-            printf("Cannot fork\n");
+            printf("Error, while creating child process\n");
             exit(EXIT_FAILURE);
         }
-        else if(pid_fork == 0)
-        {
-            
-            // get process ID (PID) of the calling process
-            printf("DIRECTORY: %s, PID: %d\n", path, getpid());
+        else if(child_pid == 0)
+        {   
+            printf("Dir path: %s, PID: %d\n", fpath, getpid());
             
             // replace the current process image with a new process image
-            int exec_status = execlp("ls", "ls", "-l", path, NULL);
-            if (exec_status != 0)
+            if (execlp("ls", "ls", "-l", fpath, NULL) != 0)
             {
-                printf("Exec failed");
+                printf("Error, exec failed");
                 exit(EXIT_FAILURE);
             }
-            exit(exec_status);
+            exit(EXIT_SUCCESS);
         }
         else
         {
@@ -86,34 +80,31 @@ void dir_info_stat(char *path){
         }
     }
     
-    
     struct dirent *file;
-    char new_path[256];
-    while ((file = readdir(dir)) != NULL)
-    {
-        strcpy(new_path, path);
-        strcat(new_path, "/");
-        strcat(new_path, file -> d_name);
+    char new_fpath[256];
 
-        // check information about a file
-        if (lstat(new_path, &buffer) < 0)
+    while ((file = readdir(dirp)) != NULL)
+    {
+        strcpy(new_fpath, fpath);
+        strcat(new_fpath, "/");
+        strcat(new_fpath, file -> d_name);
+
+        if (lstat(new_fpath, &buffer) < 0)
         {
-            printf("Cannot lstat file %s: ", new_path);
+            printf("Error, cannot lstat file %s: ", new_fpath);
             exit(EXIT_FAILURE);
         }
         
-        // check if file is a directory
-        if (S_ISDIR(buffer.st_mode))
+        if (S_ISDIR(buffer.st_mode) == 0)
         {
-
             if (strcmp(file -> d_name, ".") == 0 || strcmp(file -> d_name, "..") == 0)
             {
                 continue;
             }
-            find_dir(new_path);
+            dir_info_stat(new_fpath);
         }
     }
-    closedir(dir);
+    closedir(dirp);
 }
 
 void read_parameters(int argc, char *argv[])
