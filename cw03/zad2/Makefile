@@ -1,12 +1,21 @@
 $(CC) = gcc -Wall
 
 compile:
-		$(CC) main.c -o main
+	make main
+	make worker
+
+main:
+		$(CC) matrix.c main.c -o main
+
+worker:
+		$(CC) matrix.c worker.c -o worker
 
 clean:
-		rm -f main
+		rm -f main worker
 
 test:
+		rm -f c.txt
+		make clean
 		make compile
-		./main lista 5 10 shared
+		./main lista 3 3 -shared
 		make clean
