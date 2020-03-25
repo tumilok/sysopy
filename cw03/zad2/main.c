@@ -27,6 +27,135 @@ void check_matrices(Matrix *a_matrix, Matrix *b_matrix, int workers_num)
     }
 }
 
+void run_simple_worker(Matrix *a_matrix, Matrix *b_matrix, char *result_fname, int time_limit, int start_col, int end_col)
+{
+    FILE *fp = fopen(result_fname, "w");
+
+    int n = a_matrix -> col_num;
+    int *row = malloc(n * sizeof(int));
+    int *col = malloc(n * sizeof(int));
+
+    int finished_multiplications = 0;
+    struct timespec start;
+    clock_gettime(CLOCK_REALTIME, &start);
+    struct timespec end = start;
+
+    int row_counter = 0;
+    int col_counter = start_col;
+
+    read_row(a_matrix, row, 0);
+    read_col(b_matrix, col, start_col);
+
+    while (row_counter < a_matrix -> row_num)
+    {
+        clock_gettime(CLOCK_REALTIME, &end);
+        if ((end.tv_sec - start.tv_sec) + ((end.tv_nsec - start.tv_nsec) / 1e9) > time_limit)
+        {
+            break;
+        }
+
+        int result = multiply_vectors(row, col, n);
+
+        fprintf(fp, "%d", result);
+
+        finished_multiplications++;
+        
+        col_counter++;
+        if (col_counter == end_col)
+        {
+            col_counter = start_col;
+            row_counter++;
+            fputc('\n', fp);
+
+            if (row_counter < a_matrix -> row_num)
+            {
+                read_next_row(a_matrix, row);
+            }
+        }
+        else
+        {
+            fputc(' ', fp);
+        }
+
+        read_col(b_matrix, col, col_counter);
+    }
+
+    fclose(fp);
+    
+    exit(finished_multiplications);
+}
+
+void separated_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_num, char *time_limit)
+{
+    Matrix *a_matrix = init_matrix(a_fpath);
+    Matrix *b_matrix = init_matrix(b_fpath);
+
+    check_matrices(a_matrix, b_matrix, workers_num);
+
+    int *workers_pids = malloc(workers_num * sizeof(int));
+    char **files = malloc((workers_num + 1) * sizeof(char*));
+    double cur_position = 0.0;
+    double section = (double) b_matrix -> col_num / workers_num;
+
+    for (int i = 0; i < workers_num; i++)
+    {
+        int start = (int) cur_position;
+        cur_position += section;
+        int end = (int) cur_position;
+        files[i] = malloc(150 * sizeof(char));
+        sprintf(files[i], "worker-%d", start);
+
+        int forked = fork();
+        if (forked == 0)
+        {
+            if (i == workers_num - 1)
+            {
+                end = b_matrix -> col_num;
+            }
+            run_simple_worker(a_matrix, b_matrix, files[i], atoi(time_limit), start, end);
+        }
+        else
+        {
+            workers_pids[i] = forked;
+        }
+    }
+
+    for (int i = workers_num - 1; i >= 0; i--)
+    {
+        int return_status;
+        waitpid(workers_pids[i], &return_status, 0);
+        printf("Process %d ended with status: %d\n", workers_pids[i], WEXITSTATUS(return_status));
+    }
+
+    files[workers_num] = NULL;
+
+    char**args = malloc(sizeof(char*) * (workers_num + 3));
+
+    args[0] = "paste";
+    args[1] = "-d ";
+    printf("%d\n",workers_num);
+    for(int i = 2; i <= workers_num + 1; i++) {
+        args[i] = files[i - 2];
+    }
+    args[workers_num + 2] = NULL;
+
+    int v_pid = vfork();
+    if (v_pid== 0) {
+        int fd = open(c_fpath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        dup2(fd, 1);
+        close(fd);
+        execv("/usr/bin/paste", args);
+    }
+
+    wait(NULL);
+
+    for (int i = 0; i < workers_num; i++) {
+        remove(files[i]);
+    }
+
+    exit(0);
+}
+
 void shared_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_num, char *time_limit)
 {
     Matrix *a_matrix = init_matrix(a_fpath);
@@ -36,9 +165,9 @@ void shared_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_num
 
     Matrix *c_matrix = create_result_matrix(c_fpath, a_matrix -> row_num, b_matrix -> col_num);
 
-    free_matrix(a_matrix);
-    free_matrix(b_matrix);
-    free_matrix(c_matrix);
+    fclose(a_matrix -> fp);
+    fclose(b_matrix -> fp);
+    fclose(c_matrix -> fp);
 
     int *workers_pids = malloc(workers_num * sizeof(int));
     double cur_position = 0.0;
@@ -53,7 +182,6 @@ void shared_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_num
         int forked = fork();
         if (forked == 0)
         {
-            printf("Child");
             if (i == workers_num - 1)
             {
                 end = b_matrix -> col_num;
@@ -79,11 +207,15 @@ void shared_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_num
         waitpid(workers_pids[i], &return_status, 0);
         printf("Process %d ended with status: %d\n", workers_pids[i], WEXITSTATUS(return_status));
     }
+
+    free(a_matrix);
+    free(b_matrix);
+    free(c_matrix);
+    free(workers_pids);
 }
 
 int main(int argc, char *argv[])
 {
-    // 4 parameters: 1 - file with matreces, 2 - number of processes, 3 - number of seconds, 4 - result file type
     if (argc != 5)
     {
         printf("Error, wrong number of parameters\n");
@@ -119,7 +251,7 @@ int main(int argc, char *argv[])
     }
     else if (strcmp(exec_flag, "-separated") == 0)
     {
-
+        separated_manager(a_fpath, b_fpath, c_fpath, workers_num, time_limit);
     }
     else
     {

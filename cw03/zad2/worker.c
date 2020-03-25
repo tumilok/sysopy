@@ -38,8 +38,9 @@ void run_worker(Matrix *a_matrix, Matrix *b_matrix, Matrix *res_matrix, int star
         flock(fileno(res_matrix -> fp), LOCK_EX);
         write_result(res_matrix, row_counter, col_counter, result);
         flock(fileno(res_matrix -> fp), LOCK_UN);
-
+        
         finished_multiplications++;
+        
         row_counter++;
         if (row_counter == a_matrix -> row_num)
         { 

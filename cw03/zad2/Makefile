@@ -13,7 +13,7 @@ worker:
 clean:
 		rm -f main worker
 
-test:
+testing:
 		rm -f c.txt
 		make clean
 		make compile
