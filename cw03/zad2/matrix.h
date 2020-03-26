@@ -13,6 +13,8 @@ typedef struct Matrix
 
 } Matrix;
 
+Matrix *generate_matrix(char *fname, int row_num, int col_num, int min, int max);
+
 int multiply_vectors(int* row, int* col, int n);
 
 void move_pointer_to_line(FILE *fp, int row_number);

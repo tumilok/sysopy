@@ -1,5 +1,27 @@
 #include "matrix.h"
 
+Matrix *generate_matrix(char *fname, int row_num, int col_num, int min, int max)
+{
+    Matrix *matrix = malloc(sizeof(Matrix));
+
+    matrix -> fp = fopen(fname, "w+");
+    matrix -> row_num = row_num;
+    matrix -> col_num = col_num;
+
+    for (int i = 0; i < row_num; i++)
+    {
+        fprintf(matrix -> fp, "%d", (rand() % (min - max + 1)) + min);
+        for (int j = 1; j < col_num; j++)
+        {
+            fprintf(matrix -> fp, " %d", (rand() % (min - max + 1)) + min);
+        }
+        fputc('\n', matrix -> fp);
+    }
+    fclose(matrix -> fp);
+    
+    return matrix;
+}
+
 int multiply_vectors(int* row, int* col, int n)
 {
     int result = 0;
