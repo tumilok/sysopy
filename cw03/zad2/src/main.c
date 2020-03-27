@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
+
 #include <linux/limits.h>
 
 #include <sys/types.h>
@@ -28,7 +29,7 @@ void check_matrices(Matrix *a_matrix, Matrix *b_matrix, int workers_num)
     }
 }
 
-void run_simple_worker(Matrix *a_matrix, Matrix *b_matrix, char *result_fname, int time_limit, int start_col, int end_col)
+void run_worker(Matrix *a_matrix, Matrix *b_matrix, char *result_fname, int time_limit, int start_col, int end_col)
 {
     FILE *fp = fopen(result_fname, "w");
 
@@ -142,7 +143,7 @@ void separated_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_
             {
                 end = b_matrix -> col_num;
             }
-            run_simple_worker(a_matrix, b_matrix, files[i], atoi(time_limit), start, end);
+            run_worker(a_matrix, b_matrix, files[i], atoi(time_limit), start, end);
         }
         else
         {
@@ -218,8 +219,6 @@ void shared_manager(char *a_fpath, char *b_fpath, char *c_fpath, int workers_num
     free(b_matrix);
     free(c_matrix);
     free(workers_pids);
-
-    exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[])

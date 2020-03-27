@@ -1,5 +1,6 @@
 #include "matrix.h"
 
+
 Matrix *generate_matrix(char *fname, int row_num, int col_num, int min, int max)
 {
     Matrix *matrix = malloc(sizeof(Matrix));
@@ -44,10 +45,6 @@ void move_pointer_to_line(FILE *ptr, int row_number)
     }
 }
 
-void move_pointer_to_next_line(FILE* ptr) {
-    for (char c = getc(ptr); c != '\n'; c = getc(ptr)) {}
-}
-
 void read_row(Matrix *matrix, int *result_row, int row_number)
 {
     move_pointer_to_line(matrix -> fp, row_number);
@@ -81,7 +78,8 @@ void read_col(Matrix *matrix, int *result_col, int col_number)
             j++;
         }
         result_col[i] = num;
-        move_pointer_to_next_line(matrix -> fp);
+
+        for (char c = getc(matrix -> fp); c != '\n'; c = getc(matrix -> fp)) {}
     }
 }
 
@@ -124,7 +122,7 @@ Matrix *init_matrix(char *fpath)
         exit(EXIT_FAILURE);
     }
     matrix -> row_num = get_row_num(matrix -> fp);
-    matrix -> col_num = get_row_num(matrix -> fp);
+    matrix -> col_num = get_col_num(matrix -> fp);
 
     return matrix;
 }

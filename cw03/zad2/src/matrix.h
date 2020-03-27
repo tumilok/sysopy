@@ -35,6 +35,8 @@ Matrix *create_result_matrix(char *fname, int row_num, int col_num);
 
 void write_result(Matrix* matrix, int row, int col, int res);
 
+int finsert(FILE* file, const char *buffer);
+
 void free_matrix(Matrix *matrix);
 
 #endif

@@ -32,6 +32,6 @@ test_shared:
 		make clean
 
 test_all:
-		#make clean
+		make clean
 		make compile
-		./test 1 1 4
+		./test 10 4 9
