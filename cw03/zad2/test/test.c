@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include "matrix.h"
+#include "../src/matrix.h"
 
 #define MIN_VALUE 1
 #define MAX_VALUE 9
