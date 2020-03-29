@@ -1,0 +1,16 @@
+Ignore:
+    Both child processes ignore signal sent by the parent process. 
+    Ignoring signals are inherited.
+
+Handle:
+    The forked process has the same handler as the parent one.
+    Exec process terminates upon receiving a signal, as it hasn't got any handler.
+    Handle is partially inherited.
+
+Mask:
+    Both child processes block signals sent by the parent process.
+    Masks are inherited.
+
+Pending:
+    Both child processes do not see parent masked signal.
+    Pending is not inherited.
