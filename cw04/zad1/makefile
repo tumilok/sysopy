@@ -1,7 +1,7 @@
 $(CC) = gcc -Wall
 
 compile:
-		$(CC) sygnal.c -o sygnal
+		$(CC) signal.c -o signal
 
 clean:
-		rm -f sygnal
+		rm -f signal
