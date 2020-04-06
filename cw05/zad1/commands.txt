@@ -1,0 +1,5 @@
+cat ./interpreter.c | wc -l
+cat ./makefile | head -5 | wc -l
+ls -l  | head -5 | sort -r 
+ps -aux | grep root | wc -l
+
