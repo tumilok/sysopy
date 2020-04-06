@@ -36,10 +36,7 @@ int main(int argc, char *argv[])
     }
 
     fclose(fp);
-    if (pclose(sort_input) != 0)
-    {
-        error("could not close pipe");
-    }
+    pclose(sort_input);    
 
     return 0;
 }
