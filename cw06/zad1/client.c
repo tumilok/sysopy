@@ -21,6 +21,13 @@ void error(char *msg)
     exit(EXIT_FAILURE);
 }
 
+char *msg_to_string(int msg)
+{
+    char *buff = calloc(MAX_MSG_SIZE, sizeof(char));
+    sprintf(buff, "%d", msg);
+    return buff;
+}
+
 void delete_queue()
 {
     (msgctl(client_q, IPC_RMID, 0) == -1) ? 
@@ -28,15 +35,14 @@ void delete_queue()
         printf("Client queue has been deleted\n");
 }
 
-void send_msg(int queue, int sender_id, int receiver_id, char *msg, int type) 
+void send_msg(int queue, char *msg, int mtype) 
 {
     msgbuf msg_buf;
-    msg_buf.type = type;
-    msg_buf.sender_id = sender_id;
-    msg_buf.receiver_id = receiver_id;
+    msg_buf.mtype = mtype;
+    msg_buf.sender_id = (mtype == INIT) ? getpid() : client_id;
     if (msg != NULL)
     {
-        strcpy(msg_buf.text, msg);
+        strcpy(msg_buf.msg, msg);
     }
 
     if(msgsnd(queue, &msg_buf, msgbuf_size, 0) == -1)
@@ -46,12 +52,14 @@ void send_msg(int queue, int sender_id, int receiver_id, char *msg, int type)
 	}
 }
 
+////////////////////////////////////////////////////////////////////
+
 void disconnect()
 {
-	send_msg(server_q, client_id, chatting_id, NULL, DISCONNECT);
+	send_msg(server_q, msg_to_string(chatting_id), DISCONNECT);
 
 	msgbuf msg_buf;
-	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.type != DISCONNECT)
+	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.mtype != DISCONNECT)
     {
         delete_queue();
 		error("couldn't receive DISCONNECT message from server");
@@ -67,16 +75,16 @@ void stop()
 {
     if (chatting_q != -1)
     {
-		printf("Disconnecting...\n");
+		printf("Disconnecting from chatbox...\n");
 		disconnect();
 	}
 
     if (server_q != -1) 
     {
-        send_msg(server_q, client_id, -1, NULL, STOP);
+        send_msg(server_q, NULL, STOP);
     
         msgbuf msg_buf;
-        if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.type != STOP)
+        if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.mtype != STOP)
         {
             delete_queue();
             error("couldn't receive STOP message from server");
@@ -98,16 +106,16 @@ void sigint_handler(int signal)
 
 void list()
 {
-    send_msg(server_q, client_id, -1, NULL, LIST);
+    send_msg(server_q, NULL, LIST);
 
     msgbuf msg_buf;
-	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.type != LIST)
+	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.mtype != LIST)
     {
         delete_queue();
 		error("couldn't receive LIST message from server");
 	}
 
-    printf("%s", msg_buf.text);
+    printf("%s", msg_buf.msg);
 }
 
 void connect_to(int id, char *key)
@@ -124,7 +132,7 @@ void connect_to(int id, char *key)
 
 void connect(int id)
 {
-    send_msg(server_q, client_id, id, NULL, CONNECT);
+    send_msg(server_q, msg_to_string(id), CONNECT);
 
     msgbuf msg_buf;
 	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1)
@@ -133,7 +141,7 @@ void connect(int id)
 		return;
 	}
 
-	connect_to(msg_buf.receiver_id, msg_buf.text);
+	//connect_to(msg_buf.receiver_id, msg_buf.text);
 }
 
 void init(key_t client_key)
@@ -141,26 +149,25 @@ void init(key_t client_key)
     char text[MAX_MSG_SIZE];
 	sprintf(text, "\t%d", client_key);
 
-    send_msg(server_q, getpid(), -1, text, INIT);
+    send_msg(server_q, text, INIT);
 
     msgbuf msg_buf;
-	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.type != INIT)
+	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.mtype != INIT)
     {
         delete_queue();
 		error("couldn't receive INIT message from server");
 	}
 
-	client_id = atoi(msg_buf.text);
+	client_id = atoi(msg_buf.msg);
 	printf("Client with id: %d has successfully logged in\n", client_id);
 }
 
-void send_chat_message(char* text){
+void send_chat_message(char* msg){
 
 	msgbuf chat_msg;
-	chat_msg.type = CHAT;
+	chat_msg.mtype = CHAT;
 	chat_msg.sender_id = client_id;
-	chat_msg.receiver_id = chatting_id;
-	strcpy(chat_msg.text, text);
+	strcpy(chat_msg.msg, msg);
 
 	if(msgsnd(chatting_q, &chat_msg, msgbuf_size, 0) == -1)
     {
@@ -200,7 +207,7 @@ int main(int argc, char *argv[])
 		msgbuf message;
         while(msgrcv(client_q, &message, msgbuf_size, 0, IPC_NOWAIT) >= 0)
         {
-            switch (message.type)
+            switch (message.mtype)
             {
                 case STOP:
                     server_q = -1;
@@ -211,14 +218,14 @@ int main(int argc, char *argv[])
                     printf("Disconnected\n");
                     break;
                 case CONNECT:
-                    connect_to(message.receiver_id, message.text);
+                    //connect_to(message.receiver_id, message.text);
                     break;
                 case CHAT:
-                    printf("%s", message.text);
+                    printf("%s", message.msg);
                     break;
             }
         }
-
+        printf("[client %d]$ ", client_id);
         fgets(msg, sizeof msg, stdin);
         if(strcmp(msg, "") == 0) continue;
 

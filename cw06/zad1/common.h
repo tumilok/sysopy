@@ -4,7 +4,7 @@
 #include <sys/ipc.h>
 
 #define MAX_MSG_SIZE 100
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS_NUMBER 10
 #define SERVER_ID 154
 
 #define STOP 1
@@ -19,17 +19,13 @@ const char *disconnect_str = "DISCONNECT";
 const char *list_str = "LIST";
 const char *connect_str = "CONNECT";
 const char *init_str = "INIT";
-const char *chat_str = "CHAt";
 
-struct msgbuf
+typedef struct
 {
-    long type;
-    char text[MAX_MSG_SIZE];
+    long mtype;
+    char msg[MAX_MSG_SIZE];
     int sender_id;
-    int receiver_id;
-};
-
-typedef struct msgbuf msgbuf;
+} msgbuf;
 
 const size_t msgbuf_size = sizeof(msgbuf) - sizeof(long);
 
