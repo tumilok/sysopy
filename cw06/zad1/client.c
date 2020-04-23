@@ -1,19 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include <sys/msg.h>
-
-#include "common.h"
-
-int client_q = -1;
-int server_q = -1;
-int chatting_q = -1;
-int chatting_id = -1;
-int client_id = -1;
+#include "client.h"
 
 void sigint_handler(int signal)
 {
@@ -39,6 +24,18 @@ void delete_queue()
     (msgctl(client_q, IPC_RMID, 0) == -1) ? 
         error("couldn't delete client queue"):
         printf("Client queue has been deleted\n");
+}
+
+void expected_type(const char *exp_str, long exp, long got)
+{
+    if (exp != got)
+    {
+        char *error_msg = "Wrong type of message, expected ";
+        strcat(error_msg, exp_str);
+
+        delete_queue();
+        error(error_msg);
+    }
 }
 
 void send_msg(int queue, char *msg, int mtype) 
@@ -69,45 +66,42 @@ msgbuf *receive_msg(int queue)
     return msg_buf;
 }
 
-///////////////////////////////////////////
-
-void disconnect()
+void receive_next_msg()
 {
-	send_msg(server_q, msg_to_string(chatting_id), DISCONNECT);
-
-	msgbuf msg_buf;
-	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.mtype != DISCONNECT)
+    msgbuf msg_buf;
+    while(msgrcv(client_q, &msg_buf, msgbuf_size, 0, IPC_NOWAIT) >= 0)
     {
-        delete_queue();
-		error("couldn't receive DISCONNECT message from server");
-	}
-
-	chatting_id = -1;
-	chatting_q = -1;
-
-	printf("Disconnected\n");
+        switch (msg_buf.mtype)
+        {
+            case STOP:
+                server_q = -1;
+                exit(EXIT_SUCCESS);
+            case DISCONNECT:
+                chatting_q = -1;
+                chatting_id = -1;
+                printf("Disconnected from chatbox\n");
+                break;
+            case CONNECT:
+                connect_to(msg_buf.msg);
+                break;
+            case CHAT:
+                printf("%s", msg_buf.msg);
+                break;
+        }
+    }
 }
-
-////////////////////////////////////////////////////////////////
-//DONE
 
 void stop()
 {
     if (chatting_q != -1)
     {
-		printf("Disconnecting from chatbox...\n");
 		disconnect();
 	}
     if (server_q != -1 && client_id != -1) 
     {
         send_msg(server_q, NULL, STOP);
-
         msgbuf *response = receive_msg(client_q);
-        if (response -> mtype != STOP)
-        {
-            delete_queue();
-            error("expected to receive STOP message from server");
-        }
+        expected_type(stop_str, STOP, response -> mtype);
         printf("Succesfully logged out from the server\n");
     }
 	if (client_q != -1)
@@ -116,26 +110,29 @@ void stop()
     }
 }
 
+void disconnect()
+{
+	send_msg(server_q, msg_to_string(chatting_id), DISCONNECT);
+	msgbuf *response = receive_msg(client_q);
+    expected_type(disconnect_str, DISCONNECT, response -> mtype);
+	chatting_id = -1;
+	chatting_q = -1;
+	printf("Disconnected from chatbox\n");
+}
+
 void list()
 {
     send_msg(server_q, NULL, LIST);
     msgbuf *response = receive_msg(client_q);
-    if (response -> mtype != LIST)
-    {
-        delete_queue();
-        error("expected to receive LIST message from server");
-    }
+    expected_type(list_str, LIST, response -> mtype);
     printf("%s", response -> msg);
 }
-
-////////////////////////////////////////////////////////////////////
 
 void connect_to(char *msg)
 {
     int id = atoi(strtok(msg, " "));
     int key = atoi(strtok(NULL, " "));
 
-    printf("id: %d, key: %d\n", id, key);
     chatting_id = id;
 	chatting_q = msgget(key, 0);
 	printf("Connected to %d\n", id);
@@ -145,11 +142,7 @@ void connect(char *id)
 {
     send_msg(server_q, id, CONNECT);
     msgbuf *response = receive_msg(client_q);
-    if (response -> mtype != CONNECT)
-    {
-        delete_queue();
-        error("expected to receive CONNECT message from server");
-    }
+    expected_type(connect_str, CONNECT, response -> mtype);
 	connect_to(response -> msg);
 }
 
@@ -165,17 +158,51 @@ void init(key_t client_key)
 	printf("Client got id: %d\n", client_id);
 }
 
-void send_chat_message(char* msg){
-
-	msgbuf chat_msg;
-	chat_msg.mtype = CHAT;
-	chat_msg.sender_id = client_id;
-	strcpy(chat_msg.msg, msg);
-
-	if(msgsnd(chatting_q, &chat_msg, msgbuf_size, 0) == -1)
+void run_client()
+{
+    char msg[MAX_MSG_SIZE];
+	while (1)
     {
-		printf("Could not send message to %d", chatting_id);
-		return;
+		receive_next_msg();
+
+        printf("(%d): ", client_id);
+        fgets(msg, sizeof msg, stdin);
+
+        if (!strcmp(msg, refresh_str))
+        {
+
+        }
+		else if (!strncmp(msg, list_str, strlen(list_str)))
+        {
+			list();
+		}
+		else if (!strncmp(msg, connect_str, strlen(connect_str)))
+        {
+			connect(msg + strlen(connect_str));
+		}
+		else if (!strncmp(msg, disconnect_str, strlen(disconnect_str)))
+        {
+			if (chatting_q == -1)
+            {
+				printf("Cannot disconnect if you are not connected\n");
+				continue;
+			}
+			disconnect();
+		}
+		else if (!strncmp(msg, stop_str, strlen(stop_str)))
+        {
+			exit(EXIT_SUCCESS);
+		}
+		else if (chatting_id != -1)
+        {
+			send_msg(chatting_q, msg, CHAT);
+		}
+		else
+        {
+			printf("Unknown command\n Available commands:\n%s\n%s\n%s\n%s\n%s\n",
+             "Send messages if you are in a chat mode or press enter to refresh",
+					list_str, connect_str, disconnect_str, stop_str);
+		}
 	}
 }
 
@@ -201,63 +228,5 @@ int main(int argc, char *argv[])
     }
 
     init(client_key);
-
-    char msg[MAX_MSG_SIZE];
-	while (1)
-    {
-		msgbuf message;
-        while(msgrcv(client_q, &message, msgbuf_size, 0, IPC_NOWAIT) >= 0)
-        {
-            switch (message.mtype)
-            {
-                case STOP:
-                    server_q = -1;
-                    exit(EXIT_SUCCESS);
-                case DISCONNECT:
-                    chatting_q = -1;
-                    chatting_id = -1;
-                    printf("Disconnected\n");
-                    break;
-                case CONNECT:
-                    connect_to(message.msg);
-                    break;
-                case CHAT:
-                    printf("%s", message.msg);
-                    break;
-            }
-        }
-        printf("[client %d]$ ", client_id);
-        fgets(msg, sizeof msg, stdin);
-        if(strcmp(msg, "") == 0) continue;
-
-		if(strncmp(msg, list_str, strlen(list_str)) == 0)
-        {
-			list();
-		}
-		else if(strncmp(msg, connect_str, strlen(connect_str)) == 0 )
-        {
-			connect(msg + strlen(connect_str));
-		}
-		else if(strncmp(msg, disconnect_str, strlen(disconnect_str)) == 0)
-        {
-			if(chatting_q == -1)
-            {
-				printf("Cannot disconnect if you are not connected\n");
-				continue;
-			}
-			disconnect();
-		}
-		else if(strncmp(msg, stop_str, strlen(stop_str)) == 0)
-        {
-			exit(EXIT_SUCCESS);
-		}
-		else if(chatting_id != -1)
-        {
-			send_chat_message(msg);
-		}
-		else{
-			printf("Invalid entry. Use command or if you're connected just chat! \n Available commands:\n%s\n%s\n%s (only when connected)\n%s\n",
-					list_str, connect_str, disconnect_str, stop_str);
-		}
-	}
+    run_client();    
 }

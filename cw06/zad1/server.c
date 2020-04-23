@@ -1,26 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/msg.h>
-
-#include "common.h"
-
-typedef struct
-{
-    pid_t pid;
-    key_t queue_key;
-    int chatting_id;
-} client;
-
-client clients[MAX_CLIENTS_NUMBER];
-int server_q = -1;
+#include "server.h"
 
 void sigint_handler(int signal)
 {
+    printf("\n");
     exit(EXIT_SUCCESS);
 }
 
@@ -56,39 +38,20 @@ void stop_client(int client_id)
 {
     send_msg(msgget(clients[client_id].queue_key, 0),
             msg_to_string(client_id), STOP);
-
     clients[client_id].pid = -1;
     clients[client_id].queue_key = -1;
     clients[client_id].chatting_id = -1;
-
     printf("Client with id: %d has loged out\n", client_id);
 }
 
-//////////////////////////////////////////////////////////
-
-void send_disconnect_response(int client_id){
-
-	msgbuf response;
-	response.sender_id = getpid();
-	//response.receiver_id = client_id;
-	response.mtype = DISCONNECT;
-
-	int c_queue_key = msgget(clients[client_id].queue_key, 0);
-
-	if(msgsnd(c_queue_key, &response, msgbuf_size, 0) == -1){
-		printf("Disconnecting %d failed", client_id);
-		return;
-	}
-
-	clients[client_id].chatting_id = -1;
-}
-
-void disconnect(int client_id)
+void disconnect(int client1_id)
 {
-    int chatting_id = clients[client_id].chatting_id;
-
-	send_disconnect_response(client_id);
-	send_disconnect_response(chatting_id);
+    int client2_id = clients[client1_id].chatting_id;
+    send_msg(msgget(clients[client1_id].queue_key, 0), NULL, DISCONNECT);
+    send_msg(msgget(clients[client2_id].queue_key, 0), NULL, DISCONNECT);
+    clients[client1_id].chatting_id = -1;
+    clients[client2_id].chatting_id = -1;
+    printf("Connection aborted %d <|=|> %d\n", client1_id, client2_id);
 }
 
 void list(int client_id)
@@ -109,7 +72,6 @@ void list(int client_id)
         }
 	}
     strcat(msg, "--------------------\n");
-
     send_msg(msgget(clients[client_id].queue_key, 0), msg, LIST);
 }
 
@@ -120,10 +82,8 @@ void send_connect_msg(int client_id, int chatting_id)
     char *msg = msg_to_string(chatting_id);
     strcat(msg, " ");
     strcat(msg, msg_to_string(clients[chatting_id].queue_key));
-    strcat(msg, "\n");
 
     send_msg(msgget(clients[client_id].queue_key, 0), msg, CONNECT);
-	printf("Conencted %d to %d", client_id, chatting_id);
 }
 
 void connect(int client1_id, int client2_id)
@@ -136,6 +96,7 @@ void connect(int client1_id, int client2_id)
     }
 	send_connect_msg(client1_id, client2_id);
 	send_connect_msg(client2_id, client1_id);
+    printf("Connection initialized %d <=> %d\n", client1_id, client2_id);
 }
 
 void init(msgbuf msg_buf)
@@ -179,33 +140,9 @@ void terminate_server()
     }
 }
 
-int main(int argc, char *argv[])
+void run_server()
 {
-    atexit(terminate_server);
-
-    if (signal(SIGINT, sigint_handler) == SIG_ERR)
-    {
-        error("couldn't install SIGINT handler");
-    }
-
-    for (int i = 0; i < MAX_CLIENTS_NUMBER; i++)
-    {
-        clients[i].pid = -1;
-        clients[i].queue_key = -1;
-        clients[i].chatting_id = -1;
-    }
-
-    key_t server_key = ftok(getenv("HOME"), SERVER_ID);
-    if ((server_q = msgget(server_key, IPC_CREAT | 0777)) == -1)
-    {
-        error("couldn't create client queue");
-    }
-    printf("server queue %d\n", server_q);
-
-    printf("Server was successfully initialized\n");
-
     msgbuf msg_buf;
-
     while (1)
     {
         if (msgrcv(server_q, &msg_buf, msgbuf_size, 0, MSG_NOERROR) >= 0)
@@ -232,11 +169,33 @@ int main(int argc, char *argv[])
                 printf("Received INIT from client %d...\n", msg_buf.sender_id);
                 init(msg_buf);
                 break;
-            default:
-                printf("Received UNKNOWN from client %d...\n", msg_buf.sender_id);
-                break;
             }
         }
     }
+}
 
+int main(int argc, char *argv[])
+{
+    atexit(terminate_server);
+
+    if (signal(SIGINT, sigint_handler) == SIG_ERR)
+    {
+        error("couldn't install SIGINT handler");
+    }
+
+    for (int i = 0; i < MAX_CLIENTS_NUMBER; i++)
+    {
+        clients[i].pid = -1;
+        clients[i].queue_key = -1;
+        clients[i].chatting_id = -1;
+    }
+
+    key_t server_key = ftok(getenv("HOME"), SERVER_ID);
+    if ((server_q = msgget(server_key, IPC_CREAT | 0777)) == -1)
+    {
+        error("couldn't create client queue");
+    }
+    printf("Server was successfully initialized\n");
+
+    run_server();
 }

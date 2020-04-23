@@ -1,6 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/ipc.h>
 
 #define MAX_MSG_SIZE 100
@@ -14,6 +16,7 @@
 #define INIT 5
 #define CHAT 6
 
+const char *refresh_str = "";
 const char *stop_str = "STOP";
 const char *disconnect_str = "DISCONNECT";
 const char *list_str = "LIST";

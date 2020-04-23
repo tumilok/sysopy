@@ -1,3 +1,12 @@
+$(CC) = gcc -Wall
+
 all:
-	gcc -Wall client.c -o client
-	gcc -Wall server.c -o server
+		make compile
+		make clean
+
+compile:
+		$(CC) server.c -o server
+		$(CC) client.c -o client
+
+clean:
+		rm -f server client
