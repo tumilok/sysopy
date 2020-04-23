@@ -15,7 +15,6 @@ int chatting_q = -1;
 int chatting_id = -1;
 int client_id = -1;
 
-
 void error(char *msg)
 {
     printf("Error, %s\n", msg);
@@ -66,30 +65,35 @@ void disconnect()
 
 void stop()
 {
-    printf("\n");
     if (chatting_q != -1)
     {
 		printf("Disconnecting...\n");
 		disconnect();
 	}
 
-    send_msg(server_q, client_id, -1, NULL, STOP);
-
-    msgbuf msg_buf;
-	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.type != STOP)
+    if (server_q != -1) 
     {
-        delete_queue();
-		error("couldn't receive STOP message from server");
-	}
+        send_msg(server_q, client_id, -1, NULL, STOP);
+    
+        msgbuf msg_buf;
+        if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1 || msg_buf.type != STOP)
+        {
+            delete_queue();
+            error("couldn't receive STOP message from server");
+        }
+        printf("Succesfully deleted from server\n");
+    }
 
-	printf("Succesfully deleted from server. Client shutting down...\n");
-	delete_queue();
-	exit(EXIT_SUCCESS);
+	if (client_q != -1){
+        delete_queue();
+    }
+    printf("Client shutting down...\n");
 }
 
 void sigint_handler(int signal)
 {
-    stop();
+    printf("\n");
+    exit(EXIT_SUCCESS);
 }
 
 void list()
@@ -106,9 +110,30 @@ void list()
     printf("%s", msg_buf.text);
 }
 
-void connect()
+void connect_to(int id, char *key)
 {
+    chatting_id = id;
 
+	char* ptr;
+	key_t chatting_key = strtol(key, &ptr, 10);
+
+	chatting_q = msgget(chatting_key, 0);
+
+	printf("Connected to %d\n", id);
+}
+
+void connect(int id)
+{
+    send_msg(server_q, client_id, id, NULL, CONNECT);
+
+    msgbuf msg_buf;
+	if (msgrcv(client_q, &msg_buf, msgbuf_size, 0, 0) == -1)
+    {
+		printf("Failed receiving connect response\n");
+		return;
+	}
+
+	connect_to(msg_buf.receiver_id, msg_buf.text);
 }
 
 void init(key_t client_key)
@@ -129,13 +154,26 @@ void init(key_t client_key)
 	printf("Client with id: %d has successfully logged in\n", client_id);
 }
 
-void chat()
-{
+void send_chat_message(char* text){
+
+	msgbuf chat_msg;
+	chat_msg.type = CHAT;
+	chat_msg.sender_id = client_id;
+	chat_msg.receiver_id = chatting_id;
+	strcpy(chat_msg.text, text);
+
+	if(msgsnd(chatting_q, &chat_msg, msgbuf_size, 0) == -1)
+    {
+		printf("Could not send message to %d", chatting_id);
+		return;
+	}
 
 }
 
 int main(int argc, char *argv[])
 {
+    atexit(stop);
+
     if (signal(SIGINT, sigint_handler) == SIG_ERR)
     {
         error("couldn't install SIGINT handler");
@@ -157,7 +195,7 @@ int main(int argc, char *argv[])
     init(client_key);
 
     char msg[MAX_MSG_SIZE];
-	while (fgets(msg, sizeof msg, stdin))
+	while (1)
     {
 		msgbuf message;
         while(msgrcv(client_q, &message, msgbuf_size, 0, IPC_NOWAIT) >= 0)
@@ -165,11 +203,7 @@ int main(int argc, char *argv[])
             switch (message.type)
             {
                 case STOP:
-                    if (chatting_q != -1)
-                    {
-                        disconnect();
-                    }
-                    delete_queue();
+                    server_q = -1;
                     exit(EXIT_SUCCESS);
                 case DISCONNECT:
                     chatting_q = -1;
@@ -177,13 +211,16 @@ int main(int argc, char *argv[])
                     printf("Disconnected\n");
                     break;
                 case CONNECT:
-                    connect(message.receiver_id, message.text);
+                    connect_to(message.receiver_id, message.text);
                     break;
                 case CHAT:
                     printf("%s", message.text);
                     break;
             }
         }
+
+        fgets(msg, sizeof msg, stdin);
+        if(strcmp(msg, "") == 0) continue;
 
 		if(strncmp(msg, list_str, strlen(list_str)) == 0)
         {
@@ -206,11 +243,11 @@ int main(int argc, char *argv[])
 		}
 		else if(strncmp(msg, stop_str, strlen(stop_str)) == 0)
         {
-			stop();
+			exit(EXIT_SUCCESS);
 		}
 		else if(chatting_id != -1)
         {
-			//send_chat_message(msg);
+			send_chat_message(msg);
 		}
 		else{
 			printf("Invalid entry. Use command or if you're connected just chat! \n Available commands:\n%s\n%s\n%s (only when connected)\n%s\n",

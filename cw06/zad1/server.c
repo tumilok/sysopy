@@ -105,39 +105,51 @@ void list(int client_id)
     send_msg(client_q, client_id, msg, LIST);
 }
 
-void connect(int client1_id, int client2_id)
+void send_connect_msg(int client_id, int chatting_id){
+
+	key_t chatting_key = clients[chatting_id].queue_key;
+
+	msgbuf connect_msg;
+	connect_msg.sender_id = client_id;
+	connect_msg.receiver_id = chatting_id;
+	connect_msg.type = CONNECT;
+	sprintf(connect_msg.text, "%d", chatting_key);
+
+	int c_queue_key = msgget(clients[client_id].queue_key, 0);
+
+	if(msgsnd(c_queue_key, &connect_msg, msgbuf_size, 0) == -1)
+    {
+		printf("Could not connect client of ID %d\n", client_id);
+		return;
+	}
+
+	clients[client_id].chatting_id = chatting_id;
+
+	printf("Conencted %d to %d", client_id, chatting_id);
+
+}
+
+void connect(int sender_id, int receiver_id)
 {
-    if(clients[client1_id].chatting_id != -1)
+    if(clients[sender_id].chatting_id != -1)
     {
-		printf("Client of id %d is still chatting\n", client1_id);
+		printf("Client of id %d is still chatting", sender_id);
 		return;
 	}
-	if(clients[client2_id].chatting_id != -1)
+	if(clients[receiver_id].chatting_id != -1)
     {
-		printf("Client of id %d is still chatting\n", client2_id);
+		printf("Client of id %d is still chatting", receiver_id);
 		return;
 	}
-    if (client1_id == client2_id)
-    {
-        printf("You cannot chat with yourself\n");
-        return;
-    }
 
-    int client1_q;
-    if ((client1_q = msgget(clients[client1_id].queue_key, IPC_CREAT | 0777)) == -1)
-    {
-        error("couldn't create client queue");
-    }
-    int client2_q;
-    if ((client2_q = msgget(clients[client2_id].queue_key, IPC_CREAT | 0777)) == -1)
-    {
-        error("couldn't create client queue");
-    }
-    char s_client2_q[MAX_MSG_SIZE];
-    sprintf(s_client2_q, "%d", client2_q);
+	send_connect_msg(sender_id, receiver_id);
+	send_connect_msg(receiver_id, sender_id);
 
-    send_msg(client1_q, client2_id, s_client2_q, CONNECT);
-    printf("Created conection: %d <=> %d", client1_id, client2_id);
+	if(clients[sender_id].chatting_id == -1 || clients[receiver_id].chatting_id == -1)
+    {
+		clients[sender_id].chatting_id = clients[receiver_id].chatting_id = -1;
+		printf("Connection between %d and %d failed\n", sender_id, receiver_id);
+	}
 }
 
 void init(msgbuf msg_buf)
@@ -169,7 +181,7 @@ void init(msgbuf msg_buf)
     printf("Client with id: %d has just logged in\n", id);
 }
 
-void sigint_handler(int signal)
+void terminate_server()
 {
     printf("\nTerminating server..\n");
     for (int i = 0; i < MAX_CLIENTS; i++)
@@ -184,23 +196,28 @@ void sigint_handler(int signal)
     {
         error("couldnt delete server");
     }
+}
 
+void sigint_handler(int signal)
+{
     exit(EXIT_SUCCESS);
 }
 
 
 int main(int argc, char *argv[])
 {
+    atexit(terminate_server);
+
+    if (signal(SIGINT, sigint_handler) == SIG_ERR)
+    {
+        error("couldn't install SIGINT handler");
+    }
+
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         clients[i].pid = -1;
         clients[i].queue_key = -1;
         clients[i].chatting_id = -1;
-    }
-
-    if (signal(SIGINT, sigint_handler) == SIG_ERR)
-    {
-        error("couldn't install SIGINT handler");
     }
 
     key_t server_key = ftok(getenv("HOME"), SERVER_ID);
@@ -216,35 +233,34 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        if (msgrcv(server_queue, &msg_buf, msgbuf_size, 0, MSG_NOERROR) < 0)
+        if (msgrcv(server_queue, &msg_buf, msgbuf_size, 0, MSG_NOERROR) >= 0)
         {
-            continue;
-        }
-        switch (msg_buf.type)
-        {
-        case STOP:
-            printf("Received STOP from client %d...\n", msg_buf.sender_id);
-            stop_client(msg_buf.sender_id);
-            break;
-        case DISCONNECT:
-            printf("Received DISCONNECT from client %d...\n", msg_buf.sender_id);
-            disconnect(msg_buf.sender_id);
-            break;
-        case LIST:
-            printf("Received LIST from client %d...\n", msg_buf.sender_id);
-            list(msg_buf.sender_id);
-            break;
-        case CONNECT:
-            printf("Received CONNECT from client %d...\n", msg_buf.sender_id);
-            connect(msg_buf.sender_id, msg_buf.receiver_id);
-            break;
-        case INIT:
-            printf("Received INIT from client %d...\n", msg_buf.sender_id);
-            init(msg_buf);
-            break;
-        default:
-            printf("Received UNKNOWN from client %d...\n", msg_buf.sender_id);
-            break;
+            switch (msg_buf.type)
+            {
+            case STOP:
+                printf("Received STOP from client %d...\n", msg_buf.sender_id);
+                stop_client(msg_buf.sender_id);
+                break;
+            case DISCONNECT:
+                printf("Received DISCONNECT from client %d...\n", msg_buf.sender_id);
+                disconnect(msg_buf.sender_id);
+                break;
+            case LIST:
+                printf("Received LIST from client %d...\n", msg_buf.sender_id);
+                list(msg_buf.sender_id);
+                break;
+            case CONNECT:
+                printf("Received CONNECT from client %d...\n", msg_buf.sender_id);
+                connect(msg_buf.sender_id, msg_buf.receiver_id);
+                break;
+            case INIT:
+                printf("Received INIT from client %d...\n", msg_buf.sender_id);
+                init(msg_buf);
+                break;
+            default:
+                printf("Received UNKNOWN from client %d...\n", msg_buf.sender_id);
+                break;
+            }
         }
     }
 
