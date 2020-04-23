@@ -48,9 +48,12 @@ void disconnect(int client1_id)
 {
     int client2_id = clients[client1_id].chatting_id;
     send_msg(msgget(clients[client1_id].queue_key, 0), NULL, DISCONNECT);
-    send_msg(msgget(clients[client2_id].queue_key, 0), NULL, DISCONNECT);
     clients[client1_id].chatting_id = -1;
-    clients[client2_id].chatting_id = -1;
+    if (client1_id != client2_id)
+    {
+        send_msg(msgget(clients[client2_id].queue_key, 0), NULL, DISCONNECT);
+        clients[client2_id].chatting_id = -1;
+    }
     printf("Connection aborted %d <|=|> %d\n", client1_id, client2_id);
 }
 

@@ -48,7 +48,7 @@ void send_msg(int queue, char *msg, int mtype)
         strcpy(msg_buf.msg, msg);
     }
 
-    if(msgsnd(queue, &msg_buf, msgbuf_size, 0) == -1)
+    if (msgsnd(queue, &msg_buf, msgbuf_size, 0) == -1)
     {
 		delete_queue();
 		error("client couldn't send message");
@@ -69,7 +69,7 @@ msgbuf *receive_msg(int queue)
 void receive_next_msg()
 {
     msgbuf msg_buf;
-    while(msgrcv(client_q, &msg_buf, msgbuf_size, 0, IPC_NOWAIT) >= 0)
+    while (msgrcv(client_q, &msg_buf, msgbuf_size, 0, IPC_NOWAIT) >= 0)
     {
         switch (msg_buf.mtype)
         {
@@ -82,7 +82,10 @@ void receive_next_msg()
                 printf("Disconnected from chatbox\n");
                 break;
             case CONNECT:
-                connect_to(msg_buf.msg);
+                if (chatting_id == -1)
+                {
+                    connect_to(msg_buf.msg);
+                }
                 break;
             case CHAT:
                 printf("%s", msg_buf.msg);
