@@ -19,6 +19,11 @@ typedef struct
 client clients[MAX_CLIENTS_NUMBER];
 int server_q = -1;
 
+void sigint_handler(int signal)
+{
+    exit(EXIT_SUCCESS);
+}
+
 void error(char *msg)
 {
     printf("Error, %s\n", msg);
@@ -36,8 +41,11 @@ void send_msg(int queue, char *msg, int mtype)
 {
     msgbuf msg_buf;    
     msg_buf.mtype = mtype;
-    strcpy(msg_buf.msg, msg);
     msg_buf.sender_id = getpid();
+    if (msg != NULL)
+    {
+        strcpy(msg_buf.msg, msg);
+    }
     if (msgsnd(queue, &msg_buf, msgbuf_size, 0) == -1)
     {
         error("server couldn't send message");
@@ -85,73 +93,49 @@ void disconnect(int client_id)
 
 void list(int client_id)
 {
-    char* available = "AVAILABLE";
-	char* busy = "BUSY";
     char msg[MAX_MSG_SIZE];
+	char buff[MAX_MSG_SIZE];
+	strcpy(buff, "\0");
+	strcpy(msg, "--------------------\n");
 
-	char text_buf[MAX_MSG_SIZE];
-	strcpy(text_buf, "\0");
-	strcpy(msg, "\0");
-
-	for(int i = 0; i < MAX_CLIENTS_NUMBER; i++)
+	for (int i = 0; i < MAX_CLIENTS_NUMBER; i++)
     {
-		if(clients[i].pid != -1)
+		if (clients[i].pid != -1)
         {
-		    char* availability = (clients[i].chatting_id == -1) ? available : busy;
+		    char* status = (clients[i].chatting_id == -1) ? "free" : "busy";
 
-		    sprintf(text_buf, "ID: %d\tAVAILABILITY:\t%s\n", i, availability);
-		    strcat(msg, text_buf);
+		    sprintf(buff, "client %d\t%s\n", i, status);
+		    strcat(msg, buff);
         }
 	}
-    int client_q = msgget(clients[client_id].queue_key, 0);
-    send_msg(client_q, msg, LIST);
+    strcat(msg, "--------------------\n");
+
+    send_msg(msgget(clients[client_id].queue_key, 0), msg, LIST);
 }
 
-void send_connect_msg(int client_id, int chatting_id){
-
-	key_t chatting_key = clients[chatting_id].queue_key;
-
-	msgbuf connect_msg;
-	connect_msg.sender_id = client_id;
-	//connect_msg.receiver_id = chatting_id;
-	connect_msg.mtype = CONNECT;
-	sprintf(connect_msg.msg, "%d", chatting_key);
-
-	int c_queue_key = msgget(clients[client_id].queue_key, 0);
-
-	if(msgsnd(c_queue_key, &connect_msg, msgbuf_size, 0) == -1)
-    {
-		printf("Could not connect client of ID %d\n", client_id);
-		return;
-	}
-
-	clients[client_id].chatting_id = chatting_id;
-
-	printf("Conencted %d to %d", client_id, chatting_id);
-
-}
-
-void connect(int sender_id, int receiver_id)
+void send_connect_msg(int client_id, int chatting_id)
 {
-    if(clients[sender_id].chatting_id != -1)
-    {
-		printf("Client of id %d is still chatting", sender_id);
-		return;
-	}
-	if(clients[receiver_id].chatting_id != -1)
-    {
-		printf("Client of id %d is still chatting", receiver_id);
-		return;
-	}
+    clients[client_id].chatting_id = chatting_id;
 
-	send_connect_msg(sender_id, receiver_id);
-	send_connect_msg(receiver_id, sender_id);
+    char *msg = msg_to_string(chatting_id);
+    strcat(msg, " ");
+    strcat(msg, msg_to_string(clients[chatting_id].queue_key));
+    strcat(msg, "\n");
 
-	if(clients[sender_id].chatting_id == -1 || clients[receiver_id].chatting_id == -1)
+    send_msg(msgget(clients[client_id].queue_key, 0), msg, CONNECT);
+	printf("Conencted %d to %d", client_id, chatting_id);
+}
+
+void connect(int client1_id, int client2_id)
+{
+    if (clients[client1_id].chatting_id != -1 || 
+            clients[client2_id].chatting_id != -1)
     {
-		clients[sender_id].chatting_id = clients[receiver_id].chatting_id = -1;
-		printf("Connection between %d and %d failed\n", sender_id, receiver_id);
-	}
+		printf("Someone is still in chat");
+		return;
+    }
+	send_connect_msg(client1_id, client2_id);
+	send_connect_msg(client2_id, client1_id);
 }
 
 void init(msgbuf msg_buf)
@@ -162,24 +146,19 @@ void init(msgbuf msg_buf)
 		if (clients[i].pid == -1)
         {
             id = i;
+            break;
         }
 	}
     if (id == -1)
     {
         printf("Server is full\n");
+        send_msg(msgget(atoi(msg_buf.msg), 0), NULL, STOP);
         return;
     }
-
     clients[id].pid = msg_buf.sender_id;
-    char* ptr;
-	clients[id].queue_key = strtol(msg_buf.msg, &ptr, 10);
-    
-    int client_q = msgget(clients[id].queue_key, 0);
-    
-    char msg[MAX_MSG_SIZE];
-    sprintf(msg, "%d", id);
+	clients[id].queue_key = atoi(msg_buf.msg);
 
-    send_msg(client_q, msg, INIT);
+    send_msg(msgget(clients[id].queue_key, 0), msg_to_string(id), INIT);
     printf("Client with id: %d has just logged in\n", id);
 }
 
@@ -199,12 +178,6 @@ void terminate_server()
         error("couldnt delete server");
     }
 }
-
-void sigint_handler(int signal)
-{
-    exit(EXIT_SUCCESS);
-}
-
 
 int main(int argc, char *argv[])
 {
@@ -253,7 +226,7 @@ int main(int argc, char *argv[])
                 break;
             case CONNECT:
                 printf("Received CONNECT from client %d...\n", msg_buf.sender_id);
-                //connect(msg_buf.sender_id, msg_buf.receiver_id);
+                connect(msg_buf.sender_id, atoi(msg_buf.msg));
                 break;
             case INIT:
                 printf("Received INIT from client %d...\n", msg_buf.sender_id);
