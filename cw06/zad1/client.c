@@ -145,8 +145,10 @@ void connect(char *id)
 {
     send_msg(server_q, id, CONNECT);
     msgbuf *response = receive_msg(client_q);
-    expected_type(connect_str, CONNECT, response -> mtype);
-	connect_to(response -> msg);
+    if (response -> mtype == CONNECT)
+    {
+        connect_to(response -> msg);
+    }
 }
 
 void init(key_t client_key)
@@ -202,7 +204,7 @@ void run_client()
 		}
 		else
         {
-			printf("Unknown command\n Available commands:\n%s\n%s\n%s\n%s\n%s\n",
+			printf("Unknown command\nAvailable commands:\n%s\n%s\n%s\n%s\n%s\n",
              "Send messages if you are in a chat mode or press enter to refresh",
 					list_str, connect_str, disconnect_str, stop_str);
 		}

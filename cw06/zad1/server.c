@@ -76,6 +76,7 @@ void list(int client_id)
 	}
     strcat(msg, "--------------------\n");
     send_msg(msgget(clients[client_id].queue_key, 0), msg, LIST);
+    printf("List was sent to client %d\n", client_id);
 }
 
 void send_connect_msg(int client_id, int chatting_id)
@@ -91,14 +92,14 @@ void send_connect_msg(int client_id, int chatting_id)
 
 void connect(int client1_id, int client2_id)
 {
-    if (clients[client1_id].chatting_id != -1 || 
-            clients[client2_id].chatting_id != -1)
+    if (clients[client1_id].chatting_id != -1 || clients[client2_id].chatting_id != -1)
     {
-		printf("Someone is still in chat");
-		return;
+		printf("Someone is still chatting");
+        send_msg(msgget(clients[client1_id].queue_key, 0), NULL, STOP);
+        return;
     }
-	send_connect_msg(client1_id, client2_id);
-	send_connect_msg(client2_id, client1_id);
+    send_connect_msg(client1_id, client2_id);
+    send_connect_msg(client2_id, client1_id);
     printf("Connection initialized %d <=> %d\n", client1_id, client2_id);
 }
 
@@ -128,7 +129,6 @@ void init(msgbuf msg_buf)
 
 void terminate_server()
 {
-    printf("\nTerminating server..\n");
     for (int i = 0; i < MAX_CLIENTS_NUMBER; i++)
     {
         if (clients[i].pid != -1)
@@ -141,6 +141,7 @@ void terminate_server()
     {
         error("couldnt delete server");
     }
+    printf("\nServer was terminated\n");
 }
 
 void run_server()
@@ -153,23 +154,18 @@ void run_server()
             switch (msg_buf.mtype)
             {
             case STOP:
-                printf("Received STOP from client %d...\n", msg_buf.sender_id);
                 stop_client(msg_buf.sender_id);
                 break;
             case DISCONNECT:
-                printf("Received DISCONNECT from client %d...\n", msg_buf.sender_id);
                 disconnect(msg_buf.sender_id);
                 break;
             case LIST:
-                printf("Received LIST from client %d...\n", msg_buf.sender_id);
                 list(msg_buf.sender_id);
                 break;
             case CONNECT:
-                printf("Received CONNECT from client %d...\n", msg_buf.sender_id);
                 connect(msg_buf.sender_id, atoi(msg_buf.msg));
                 break;
             case INIT:
-                printf("Received INIT from client %d...\n", msg_buf.sender_id);
                 init(msg_buf);
                 break;
             }
