@@ -74,30 +74,43 @@ void send_msg(mqd_t queue, char *msg, int priority)
 	}
 }
 
-void disconnect_handler()
+void receive_next_msg()
 {
-	(mq_close(chatting_q) == -1) ?
-		error("could't close server queue") :
-		printf("Disconnected from chatbox\n");
-	chatting_q = -1;
-	strcpy(chatting_name, "");
-}
-
-void disconnect()
-{
-	erase_nonblock();
+	apply_nonblock();
 
 	char msg[MAX_MSG_SIZE];
-	sprintf(msg, "%d", client_id);
-	unsigned int priority = DISCONNECT;
-
-	send_msg(server_q, msg, priority);
-	if (mq_receive(client_q, msg, sizeof(msg), &priority) == -1)
+	unsigned int priority;
+	while (mq_receive(client_q, msg, sizeof(msg), &priority) >= 0)
 	{
-		error("couldn't receive DISCONNECT message");
+		switch (priority)
+		{
+			case STOP:
+				stop_handler();
+				break;
+			case DISCONNECT:
+				disconnect_handler();
+				break;
+			case CONNECT:
+				connect_handler(msg);
+				break;
+			case CHAT:
+				printf("%s", msg);
+				break;
+		}
+		received = 1;
 	}
-	expected_type(disconnect_str, DISCONNECT, priority);
-	disconnect_handler();
+}
+
+void stop_handler()
+{
+	if (server_q != -1)
+	{
+		(mq_close(server_q) == -1) ? 
+		error("could't close server queue"):
+		printf("Server queue closed\n");
+	}
+	server_q = -1;
+	exit(EXIT_SUCCESS);
 }
 
 void stop()
@@ -137,23 +150,30 @@ void stop()
 	}
 }
 
-void init()
+void disconnect_handler()
 {
+	(mq_close(chatting_q) == -1) ?
+		error("could't close server queue") :
+		printf("Disconnected from chatbox\n");
+	chatting_q = -1;
+	strcpy(chatting_name, "");
+}
+
+void disconnect()
+{
+	erase_nonblock();
+
 	char msg[MAX_MSG_SIZE];
-	strcpy(msg, client_name);
-	unsigned int priority = INIT;
+	sprintf(msg, "%d", client_id);
+	unsigned int priority = DISCONNECT;
 
 	send_msg(server_q, msg, priority);
-	if (mq_receive(client_q, msg, sizeof msg, &priority) == -1)
+	if (mq_receive(client_q, msg, sizeof(msg), &priority) == -1)
 	{
-		error("couldn't receive INIT message");
+		error("couldn't receive DISCONNECT message");
 	}
-	if (priority == STOP)
-	{
-		error("server is full");
-	}
-	client_id = atoi(msg);
-	printf("Client got id: %d\n", client_id);
+	expected_type(disconnect_str, DISCONNECT, priority);
+	disconnect_handler();
 }
 
 void list()
@@ -208,43 +228,23 @@ void connect(int client2_id)
 	connect_handler(msg);
 }
 
-void stop_handler()
+void init()
 {
-	if (server_q != -1)
-	{
-		(mq_close(server_q) == -1) ? 
-		error("could't close server queue"):
-		printf("Server queue closed\n");
-	}
-	server_q = -1;
-	exit(EXIT_SUCCESS);
-}
-
-void receive_next_msg()
-{
-	apply_nonblock();
-
 	char msg[MAX_MSG_SIZE];
-	unsigned int priority;
-	while (mq_receive(client_q, msg, sizeof(msg), &priority) >= 0)
+	strcpy(msg, client_name);
+	unsigned int priority = INIT;
+
+	send_msg(server_q, msg, priority);
+	if (mq_receive(client_q, msg, sizeof msg, &priority) == -1)
 	{
-		switch (priority)
-		{
-			case STOP:
-				stop_handler();
-				break;
-			case DISCONNECT:
-				disconnect_handler();
-				break;
-			case CONNECT:
-				connect_handler(msg);
-				break;
-			case CHAT:
-				printf("%s", msg);
-				break;
-		}
-		received = 1;
+		error("couldn't receive INIT message");
 	}
+	if (priority == STOP)
+	{
+		error("server is full");
+	}
+	client_id = atoi(msg);
+	printf("Client got id: %d\n", client_id);
 }
 
 void run_client()
