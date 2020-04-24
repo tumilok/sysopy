@@ -33,7 +33,9 @@ int get_index()
 
 void send_msg(mqd_t queue, char *msg, int priority) 
 {
-	if (mq_send(queue, msg, sizeof(msg), priority) == -1)
+	char to_send[MAX_MSG_SIZE];
+	strcpy(to_send, msg);
+	if (mq_send(queue, to_send, sizeof(to_send), priority) == -1)
 	{
 		error("server couldn't send message");
 	}
@@ -89,11 +91,7 @@ void list(int client_id)
 			strcat(msg, buff);
 		}
 	}
-
-	if (mq_send(clients[client_id].queue, msg, sizeof(msg), LIST) == -1)
-	{
-		error("couldn't send LIST reply to client");
-	}
+	send_msg(clients[client_id].queue, msg, LIST);
 	printf("List was sent to client %d\n", client_id);
 }
 
