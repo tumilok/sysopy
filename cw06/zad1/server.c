@@ -19,6 +19,18 @@ char *msg_to_string(int msg)
     return buff;
 }
 
+int get_index()
+{
+    for (int i = 0; i < MAX_CLIENTS_NUMBER; i++)
+    {
+		if (clients[i].pid == -1)
+        {
+            return i;
+        }
+	}
+	return -1;
+}
+
 void send_msg(int queue, char *msg, int mtype) 
 {
     msgbuf msg_buf;    
@@ -68,7 +80,7 @@ void list(int client_id)
     {
 		if (clients[i].pid != -1)
         {
-		    char* status = (clients[i].chatting_id == -1) ? "free" : "busy";
+		    char *status = (clients[i].chatting_id == -1) ? "free" : "busy";
 
 		    sprintf(buff, "client %d\t%s\n", i, status);
 		    strcat(msg, buff);
@@ -105,15 +117,7 @@ void connect(int client1_id, int client2_id)
 
 void init(msgbuf msg_buf)
 {
-    int id = -1;
-    for (int i = 0; i < MAX_CLIENTS_NUMBER; i++)
-    {
-		if (clients[i].pid == -1)
-        {
-            id = i;
-            break;
-        }
-	}
+    int id = get_index();
     if (id == -1)
     {
         printf("Server is full\n");

@@ -25,6 +25,7 @@ int server_q = -1;
 void sigint_handler(int signal);
 void error(char *msg);
 char *msg_to_string(int msg);
+int get_index();
 void send_msg(int queue, char *msg, int mtype);
 void stop_client(int client_id);
 void disconnect(int client1_id);

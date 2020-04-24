@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
     key_t server_key = ftok(getenv("HOME"), SERVER_ID);
     if ((server_q = msgget(server_key, IPC_CREAT | 0777)) == -1)
     {
-        error("couldn't create client queue");
+        error("couldn't create server queue");
     }
 
     init(client_key);
