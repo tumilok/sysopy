@@ -45,37 +45,9 @@ int get_ord_id()
     return orders_id;
 }
 
-void set_modify(struct sembuf *sem_buf)
+void set_sembuf(struct sembuf *sem_buf, int sem_num, int sem_op)
 {
-	sem_buf -> sem_num = IN_USE;
-	sem_buf -> sem_op = 0;
-	sem_buf -> sem_flg = 0;
-}
-
-void set_using(struct sembuf *sem_buf)
-{
-    sem_buf -> sem_num = IN_USE;
-	sem_buf -> sem_op = 1;
-	sem_buf -> sem_flg = 0;
-}
-
-void set_free(struct sembuf *sem_buf)
-{
-    sem_buf -> sem_num = ARE_FREE;
-	sem_buf -> sem_op = 0;
-	sem_buf -> sem_flg = 0;
-}
-
-void set_prep(struct sembuf *sem_buf)
-{
-    sem_buf -> sem_num = ARE_TO_PREP;
-	sem_buf -> sem_op = 0;
-	sem_buf -> sem_flg = 0;
-}
-
-void set_orders(struct sembuf *sem_buf)
-{
-    sem_buf -> sem_num = ARE_TO_SEND;
-	sem_buf -> sem_op = 0;
+	sem_buf -> sem_num = sem_num;
+	sem_buf -> sem_op = sem_op;
 	sem_buf -> sem_flg = 0;
 }

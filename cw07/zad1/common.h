@@ -24,16 +24,24 @@
 #define ORD_ID 'o'
 
 #define SEM_NUMBER 4
-#define WORKER1_NUM 5
-#define WORKER2_NUM 2
-#define WORKER3_NUM 3
+
+#define RECEIVER_NUM 10
+#define PACKER_NUM 5
+#define SENDER_NUM 8
+#define WORKERS_NUM                            \
+  (RECEIVER_NUM + PACKER_NUM + SENDER_NUM)
+
+#define	BUSY 0
+#define	PACK 1
+#define	SEND 2
+#define	FREE 3
 
 typedef struct 
 {
 	int first_free;
-	int first_to_prep;
+	int first_to_pack;
 	int first_to_send;
-	int num_to_prep;
+	int num_to_pack;
 	int num_to_send;
 	int vals[MAX_ORDERS];
 } orders;
@@ -46,11 +54,6 @@ union semun
 	struct seminfo *__buf;
 };
 
-#define	IN_USE 0
-#define	ARE_TO_PREP 1
-#define	ARE_TO_SEND 2
-#define	ARE_FREE 3
-
 int sem_id;
 int orders_id;
 
@@ -60,10 +63,6 @@ key_t get_sem_key();
 key_t get_ord_key();
 int get_sem_id();
 int get_ord_id();
-void set_modify(struct sembuf *sem_buf);
-void set_using(struct sembuf *sem_buf);
-void set_free(struct sembuf *sem_buf);
-void set_prep(struct sembuf *sem_buf);
-void set_orders(struct sembuf *sem_buf);
+void set_sembuf(struct sembuf *sem_buf, int sem_num, int sem_op);
 
 #endif //COMMON_H
