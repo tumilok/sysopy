@@ -1,36 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <limits.h>
-#include <wait.h>
-#include <errno.h>
-#include <signal.h>
-
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
-#include <linux/limits.h>
-
 #include "common.h"
 
 const int workers_num = WORKER1_NUM + WORKER2_NUM + WORKER3_NUM;
 
 pid_t worker_pids[WORKER1_NUM + WORKER2_NUM + WORKER3_NUM];
-int sem_id;
-int orders_id;
-
-void error(char *msg)
-{
-	printf("%s Error: %s\n", msg, strerror(errno));
-	exit(EXIT_FAILURE);
-}
-
-void sigint_handler(int signal)
-{
-	exit(EXIT_SUCCESS);
-}
 
 void terminate()
 {
@@ -42,12 +14,11 @@ void terminate()
 	shmctl(orders_id, IPC_RMID, NULL);
 }
 
-int create_semaphores(char* path)
+int create_semaphores()
 {
-	key_t sem_key = ftok(path, SEM_ID);
-
+	key_t sem_key = get_sem_key();
 	int sem_id;
-	if ((sem_id = semget(sem_key, NSEMS, IPC_CREAT | 0666)) == -1)
+	if ((sem_id = semget(sem_key, SEM_NUMBER, IPC_CREAT | 0666)) == -1)
 	{
 		printf("Couldn't create a set of semaphores.\n");
 		exit(EXIT_FAILURE);
@@ -67,11 +38,11 @@ int create_semaphores(char* path)
 	return sem_id;
 }
 
-int create_orders(char* path)
+int create_orders()
 {
-	key_t ord_key = ftok(path, ORD_ID);
-	int orders_id = shmget(ord_key, (sizeof(orders)), IPC_CREAT | 0666);
-	if (orders_id == -1)
+	key_t ord_key = get_ord_key();
+	int orders_id;
+	if ((orders_id = shmget(ord_key, (sizeof(orders)), IPC_CREAT | 0666)) == -1)
 	{
 		error("Could not create shared memory.");
 	}
@@ -100,11 +71,9 @@ int main(int argc, char *argv[])
 	atexit(terminate);
 	signal(SIGINT, sigint_handler);
 
-	char cwd[PATH_MAX];
-	getcwd(cwd, sizeof cwd);
 
-	sem_id = create_semaphores(cwd);
-	orders_id = create_orders(cwd);
+	sem_id = create_semaphores();
+	orders_id = create_orders();
 
 	for (int i = 0; i < workers_num; i++)
 	{

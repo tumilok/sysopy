@@ -1,52 +1,12 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/sem.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <unistd.h>
-#include <limits.h>
-#include <time.h>
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
-#include <linux/limits.h>
 #include "common.h"
 
-int sem_id;
-
-void error(char* msg)
-{
-	printf("%s Error: %s\n", msg, strerror(errno));
-	exit(EXIT_FAILURE);
-}
-
-void sigint_handler(int signal)
-{
-	exit(EXIT_SUCCESS);
-}
-
-void terminate()
-{
-	printf("Terminating worker3 %d\n", getpid());
-}
-
-
-void send(int sem_id, int orders_id)
+void send()
 {
 	struct sembuf sops[3];
 
-	sops[0].sem_num = IN_USE;	//wait until nobody modifies orders
-	sops[0].sem_op = 0;
-	sops[0].sem_flg = 0;
-
-	sops[1].sem_num = ARE_TO_SEND;	//wait until there are orders to send
-	sops[1].sem_op = 0;
-	sops[1].sem_flg = 0;
-
-	sops[2].sem_num = IN_USE;	//mark orders as currently being used
-	sops[2].sem_op = 1;
-	sops[2].sem_flg = 0;
+	set_modify(&sops[0]);
+	set_orders(&sops[1]);
+	set_using(&sops[2]);
 
 	if(semop(sem_id, sops, 3) == -1)
 	{
@@ -98,34 +58,16 @@ void send(int sem_id, int orders_id)
 
 int main(int argc, char *argv[])
 {
-	if (atexit(terminate) == -1)
-	{
-		error("atexit failed.");
-	}
 	signal(SIGINT, sigint_handler);
 
 	srand(time(NULL));
 
-	char cwd[PATH_MAX];
-	getcwd(cwd, sizeof cwd);
-
-	key_t sem_key = ftok(cwd, SEM_ID);
-	sem_id = semget(sem_key, 0, 0);
-	if (sem_id == -1)
-	{
-		error("Could not access semaphores.");
-	}
-
-	key_t arr_key = ftok(cwd, ORD_ID);
-	int orders_id = shmget(arr_key, 0, 0);
-	if (orders_id == -1)
-	{
-		error("Could not access shared memory.");
-	}
+	sem_id = get_sem_id();
+	orders_id = get_ord_id();
 
 	while (1)
 	{
-		usleep((rand() % 5 + 1) * RAND_TIME_MUL);
-		send(sem_id, orders_id);
+		usleep((rand() % 5 + 1) * 100000);
+		send();
 	}
 }
