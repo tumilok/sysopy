@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	for (int i = 0; i < RECEIVER_NUM; i++)
+	for (int i = 0; i < WORKERS_NUM; i++)
 	{
 		wait(NULL);
 	}
