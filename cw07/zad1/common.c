@@ -44,10 +44,3 @@ int get_ord_id()
 	}
     return orders_id;
 }
-
-void set_sembuf(struct sembuf *sem_buf, int sem_num, int sem_op)
-{
-	sem_buf -> sem_num = sem_num;
-	sem_buf -> sem_op = sem_op;
-	sem_buf -> sem_flg = 0;
-}

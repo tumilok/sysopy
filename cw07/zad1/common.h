@@ -43,7 +43,7 @@ typedef struct
 	int first_to_send;
 	int num_to_pack;
 	int num_to_send;
-	int vals[MAX_ORDERS];
+	int storage[MAX_ORDERS];
 } orders;
 
 union semun 
@@ -63,6 +63,5 @@ key_t get_sem_key();
 key_t get_ord_key();
 int get_sem_id();
 int get_ord_id();
-void set_sembuf(struct sembuf *sem_buf, int sem_num, int sem_op);
 
 #endif //COMMON_H

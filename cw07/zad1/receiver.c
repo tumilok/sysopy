@@ -1,19 +1,12 @@
-#include "common.h"
+#include "worker.h"
 
 int main(int argc, char *argv[])
 {
-	signal(SIGINT, sigint_handler);
-
-	srand(time(NULL));
-
-	sem_id = get_sem_id();
-	orders_id = get_ord_id();
+	init();
 	
 	while (1)
 	{
 		usleep((rand() % 5 + 1) * 100000);
-		
-		int order_value = 1 + rand() % 100;
 
 		struct sembuf sem_buf[3];
 
@@ -28,33 +21,38 @@ int main(int argc, char *argv[])
 
 		orders *orders = shmat(orders_id, NULL, 0);
 
-		orders -> vals[orders -> first_free] = order_value;
+		int rand_num = 1 + rand() % 100;
+
+		orders -> storage[orders -> first_free] = rand_num;
 		orders -> first_free = (orders ->first_free + 1) % MAX_ORDERS;
 		orders -> num_to_pack++;
 
 		printf("(%d %ld) Dostalem liczbe: %d. Liczba zamowien do przygotowania: %d. Liczba zamowien do wyslania: %d\n",
-				getpid(), time(NULL), order_value, orders -> num_to_pack, orders -> num_to_send);
+				getpid(), time(NULL), rand_num, orders -> num_to_pack, orders -> num_to_send);
 
-		struct sembuf finalize[3];
+		struct sembuf new_flags[3];
 
 		int index = 0;
 
-		if (MAX_ORDERS - orders -> num_to_pack - orders -> num_to_send == 0)
+		// setting free sem if there are still free places
+		if (!(orders -> first_free == orders -> first_to_send ||
+			orders -> first_free == orders -> first_to_pack))
 		{
-			set_sembuf(&finalize[index], FREE, 1);	// there are no more free places
+			set_sembuf(&new_flags[index], FREE, 1);
 			index++;
 		}
 
+		// setting pack sem if it wasn't already set
 		if (semctl(sem_id, 1, GETVAL, NULL) == 1)
 		{
-			set_sembuf(&finalize[index], PACK, -1);	//if there were no more to prepare before
+			set_sembuf(&new_flags[index], PACK, -1);
 			index++;
 		}
 
-		set_sembuf(&finalize[index], BUSY, -1);
+		set_sembuf(&new_flags[index], BUSY, -1);
 		index++;
 
-		if (semop(sem_id, finalize, index) == -1)
+		if (semop(sem_id, new_flags, index) == -1)
 		{
 			error("Could not execute operations on semaphores.");
 		}

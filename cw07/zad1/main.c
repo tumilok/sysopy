@@ -52,7 +52,7 @@ int create_orders()
 
 	for (int i = 0; i < MAX_ORDERS; i++)
 	{
-		orders -> vals[i] = -1;
+		orders -> storage[i] = -1;
 	}
 	shmdt(orders);
 

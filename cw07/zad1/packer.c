@@ -1,15 +1,10 @@
-#include "common.h"
+#include "worker.h"
 
 int main(int argc, char *argv[])
 {
-	signal(SIGINT, sigint_handler);
+	init();
 
-	srand(time(NULL));
-
-	sem_id = get_sem_id();
-	orders_id = get_ord_id();
-
-	while(1)
+	while (1)
 	{
 		usleep((rand() % 5 + 1) * 100000);
 		
@@ -26,9 +21,7 @@ int main(int argc, char *argv[])
 
 		orders* orders = shmat(orders_id, NULL, 0);
 
-		orders -> vals[orders -> first_to_pack] *= 2;
-		int n = orders -> vals[orders -> first_to_pack];
-
+		int n = orders -> storage[orders -> first_to_pack] *= 2;
 		orders -> num_to_pack--;
 		orders -> num_to_send++;
 		orders -> first_to_pack = (orders -> first_to_pack + 1) % MAX_ORDERS;
@@ -36,26 +29,28 @@ int main(int argc, char *argv[])
 		printf("(%d %ld) Przygotowalem liczbe wielkosci %d. Liczba zamowien do przygotowania: %d. Liczba zamowien do wyslania: %d\n",
 			getpid(), time(NULL), n, orders -> num_to_pack, orders -> num_to_send);
 
-		struct sembuf finalize[3];
+		struct sembuf new_flags[3];
 
 		int index = 0;
 
+		// setting pack sem if there is still smth to pack
 		if (orders -> num_to_pack == 0)
 		{
-			set_sembuf(&finalize[index], PACK, 1);	//there are no more to prepare
+			set_sembuf(&new_flags[index], PACK, 1);
 			index++;
 		}
 
+		// setting send sem if it wasn't already set
 		if (semctl(sem_id, 2, GETVAL, NULL) == 1)
 		{
-			set_sembuf(&finalize[index], SEND, -1);	//if there were no more to send before
+			set_sembuf(&new_flags[index], SEND, -1);
 			index++;
 		}
 
-		set_sembuf(&finalize[index], BUSY, -1);
+		set_sembuf(&new_flags[index], BUSY, -1);
 		index++;
 
-		if (semop(sem_id, finalize, index) == -1)
+		if (semop(sem_id, new_flags, index) == -1)
 		{
 			error("Could not execute operations on semaphores.");
 		}
