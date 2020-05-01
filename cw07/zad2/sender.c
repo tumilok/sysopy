@@ -1,85 +1,44 @@
-#include "common.h"
+#include "worker.h"
 
-sem_t* in_use_sem;
-sem_t* are_to_prep_sem;
-sem_t* are_to_send_sem;
-sem_t* are_free_sem;
+int main(int argc, char *argv[])
+{
+	init();
 
-void error_exit(char* message){
-	printf("%s Error: %s\n", message, strerror(errno));
-	exit(EXIT_FAILURE);
-}
+	while (1)
+	{
+		usleep((rand() % 5 + 1) * 100000);
+		
+		sem_wait(send_sem);
+		sem_wait(busy_sem);
 
-void sigint_handler(int signo){
-	exit(EXIT_SUCCESS);
-}
+		orders* orders =  get_orders();
 
-void exit_fun(){
-	sem_close(in_use_sem);
-	sem_close(are_to_prep_sem);
-	sem_close(are_to_send_sem);
-	sem_close(are_free_sem);
-}
+		sem_post(busy_sem);
 
-sem_t* open_sem(char* name){
-	sem_t* sem = sem_open(name, O_RDWR);
-	if(sem == SEM_FAILED) error_exit("Could not create semaphore.");
-	return sem;
-}
+		if (orders -> num_to_send > 0)
+		{
+			int n = orders -> storage[orders -> first_to_send] *= 3;
+			orders -> num_to_send--;
+			orders -> first_to_send = (orders -> first_to_send + 1) % MAX_ORDERS_NUMBER;
 
-void send(int orders_fd){
+			printf("(%d %ld) Wyslalem zamowienie wielkosci %d. Liczba zamowien do przygotowania: %d. Liczba zamowien do wyslania: %d\n",
+				getpid(), time(NULL), n, orders -> num_to_pack, orders -> num_to_send);
 
-	sem_wait(are_to_send_sem);
-	if(sem_wait(in_use_sem) == -1) error_exit("Could not wait in_use_sem.");
+			int val;
+			sem_getvalue(free_sem, &val);
+			// setting free sem if it wasn't already set
+			if (!val)
+			{
+				sem_post(free_sem);
+			}
+		}
 
-	orders* orders =  mmap(NULL, sizeof(orders), PROT_READ | PROT_WRITE, MAP_SHARED, orders_fd, 0);
-
-	sem_post(in_use_sem);
-
-	orders->storage[orders->first_to_send] *= 3;
-	int n = orders->storage[orders->first_to_send];
-
-	orders->num_to_send--;
-	orders->first_to_send = (orders->first_to_send + 1) % MAX_ORDERS_NUMBER;
-
-	printf("(%d %ld) Wyslalem zamowienie wielkosci %d. Liczba zamowien do przygotowania: %d. Liczba zamowien do wyslania: %d\n",
-		   getpid(), time(NULL), n, orders->num_to_prep, orders->num_to_send);
-
-
-	if(orders->num_to_send < 0){	//if there are still any to send
-		sem_post(are_to_send_sem);
-	}
-
-	if(munmap(orders, sizeof(orders)) == -1) error_exit("Could not unmount shared memory.");
-
-
-	int val;
-
-	sem_getvalue(are_free_sem, &val);
-	if(val == 0){				//if there were no more free places before
-		sem_post(are_free_sem);
-	}
-
-	sem_post(in_use_sem);
-}
-
-int main(int argc, char** argv){
-
-	signal(SIGINT, sigint_handler);
-	if(atexit(exit_fun) == -1) error_exit("atexit failed.");
-
-	srand(time(NULL));
-
-	in_use_sem = open_sem(BUSY);
-	are_to_prep_sem = open_sem(PACK);
-	are_to_send_sem = open_sem(SEND);
-	are_free_sem = open_sem(FREE);
-
-	int orders_fd = shm_open(ORDER_NAME, O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
-	if(orders_fd == -1) error_exit("Could not open shared memory.");
-
-	while(1){
-		usleep((rand()%5 + 1) * 100000);
-		send(orders_fd);
+		//if there are still any to send
+		if (orders -> num_to_send > 0)
+		{	
+			sem_post(send_sem);
+		}
+		unmount_orders(orders);
+		sem_post(busy_sem);
 	}
 }

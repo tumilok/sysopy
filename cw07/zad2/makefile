@@ -2,11 +2,11 @@ CC = gcc -Wall
 
 all: main
 
-main: main.c receiver.c packer.c sender.c
-		$(CC) -o main main.c -lpthread -lrt
-		$(CC) -o receiver receiver.c -lpthread -lrt
-		$(CC) -o packer packer.c -lpthread -lrt
-		$(CC) -o sender sender.c -lpthread -lrt
+main: main.c receiver.c packer.c sender.c common.c worker.c
+		$(CC) -o main main.c common.c -lpthread -lrt
+		$(CC) -o receiver receiver.c common.c worker.c -lpthread -lrt
+		$(CC) -o packer packer.c common.c worker.c -lpthread -lrt
+		$(CC) -o sender sender.c common.c worker.c -lpthread -lrt
 
 test:
 		make main
