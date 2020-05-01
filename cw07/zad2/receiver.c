@@ -43,8 +43,8 @@ void add(int orders_fd){
 	orders* orders =  mmap(NULL, sizeof(orders), PROT_READ | PROT_WRITE, MAP_SHARED, orders_fd, 0);
 
 	sem_post(in_use_sem);
-	orders->vals[orders->first_free] = order_value;
-	orders->first_free = (orders->first_free + 1) % MAX_ORDERS;
+	orders->storage[orders->first_free] = order_value;
+	orders->first_free = (orders->first_free + 1) % MAX_ORDERS_NUMBER;
 	orders->num_to_prep++;
 
 	printf("(%d %ld) Dostalem liczbe: %d. Liczba zamowien do przygotowania: %d. Liczba zamowien do wyslania: %d\n",
@@ -52,7 +52,7 @@ void add(int orders_fd){
 
 
 
-	if(!(orders->first_free == orders->first_to_send || orders->first_free == orders->first_to_prep)){
+	if(!(orders->first_free == orders->first_to_send || orders->first_free == orders->first_to_pack)){
 		sem_post(are_free_sem);	//there are still free places
 	}
 
@@ -75,14 +75,14 @@ int main(int argc, char** argv){
 
 	srand(time(NULL));
 
-	in_use_sem = open_sem(IN_USE);
+	in_use_sem = open_sem(BUSY);
 
-	are_to_prep_sem = open_sem(ARE_TO_PREP);
-	are_to_send_sem = open_sem(ARE_TO_SEND);
-	are_free_sem = open_sem(ARE_FREE);
+	are_to_prep_sem = open_sem(PACK);
+	are_to_send_sem = open_sem(SEND);
+	are_free_sem = open_sem(FREE);
 
 
-	int orders_fd = shm_open(ORD_NAME, O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+	int orders_fd = shm_open(ORDER_NAME, O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(orders_fd == -1) error_exit("Could not open shared memory.");
 
 

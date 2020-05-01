@@ -17,9 +17,7 @@
 
 #include <linux/limits.h>
 
-#define MAX_ORDERS 10
-
-#define ORD_NAME "order_name"
+#define MAX_ORDERS_NUMBER 10
 
 #define RECEIVER_NUM 10
 #define PACKER_NUM 5
@@ -27,19 +25,21 @@
 #define WORKERS_NUM                            \
   (RECEIVER_NUM + PACKER_NUM + SENDER_NUM)
 
-#define	IN_USE "busy"
-#define	ARE_TO_PREP "pack"
-#define	ARE_TO_SEND "send"
-#define	ARE_FREE "free"
+#define ORDER_NAME "order_name"
+
+#define	BUSY "busy"
+#define	FREE "free"
+#define	PACK "pack"
+#define	SEND "send"
 
 typedef struct 
 {
 	int first_free;
-	int first_to_prep;
+	int first_to_pack;
 	int first_to_send;
 	int num_to_prep;
 	int num_to_send;
-	int vals[MAX_ORDERS];
+	int storage[MAX_ORDERS_NUMBER];
 } orders;
 
 #endif //COMMON_H

@@ -37,19 +37,19 @@ void prepare(int orders_fd){
 
 	sem_post(in_use_sem);
 
-	orders->vals[orders->first_to_prep] *= 2;
-	int n = orders->vals[orders->first_to_prep];
+	orders->storage[orders->first_to_pack] *= 2;
+	int n = orders->storage[orders->first_to_pack];
 
 	orders->num_to_prep--;
 	orders->num_to_send++;
-	orders->first_to_prep = (orders->first_to_prep + 1) % MAX_ORDERS;
+	orders->first_to_pack = (orders->first_to_pack + 1) % MAX_ORDERS_NUMBER;
 
 	printf("(%d %ld) Przygotowalem liczbe wielkosci %d. Liczba zamowien do przygotowania: %d. Liczba zamowien do wyslania: %d\n",
 		   getpid(), time(NULL), n, orders->num_to_prep, orders->num_to_send);
 
 
 
-	if(orders->num_to_prep != 0){	//if there are still any to prepare
+	if(orders->num_to_prep < 0){	//if there are still any to prepare
 		sem_post(are_to_prep_sem);
 	}
 
@@ -73,12 +73,12 @@ int main(int argc, char** argv){
 
 	srand(time(NULL));
 
-	in_use_sem = open_sem(IN_USE);
-	are_to_prep_sem = open_sem(ARE_TO_PREP);
-	are_to_send_sem = open_sem(ARE_TO_SEND);
-	are_free_sem = open_sem(ARE_FREE);
+	in_use_sem = open_sem(BUSY);
+	are_to_prep_sem = open_sem(PACK);
+	are_to_send_sem = open_sem(SEND);
+	are_free_sem = open_sem(FREE);
 
-	int orders_fd = shm_open(ORD_NAME, O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+	int orders_fd = shm_open(ORDER_NAME, O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(orders_fd == -1) error_exit("Could not open shared memory.");
 
 
