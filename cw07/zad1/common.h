@@ -25,9 +25,9 @@
 
 #define SEM_NUMBER 4
 
-#define RECEIVER_NUM 10
-#define PACKER_NUM 5
-#define SENDER_NUM 8
+#define RECEIVER_NUM 100
+#define PACKER_NUM 1
+#define SENDER_NUM 200
 #define WORKERS_NUM                            \
   (RECEIVER_NUM + PACKER_NUM + SENDER_NUM)
 

@@ -19,9 +19,9 @@
 
 #define MAX_ORDERS_NUMBER 10
 
-#define RECEIVER_NUM 3
-#define PACKER_NUM 3
-#define SENDER_NUM 3
+#define RECEIVER_NUM 100
+#define PACKER_NUM 1
+#define SENDER_NUM 200
 #define WORKERS_NUM                            \
   (RECEIVER_NUM + PACKER_NUM + SENDER_NUM)
 
