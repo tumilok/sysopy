@@ -8,8 +8,8 @@
 #include <pthread.h>
 #include <sys/times.h>
 
-#define MAX_SHAVING_TIME 10
-#define MAX_CLIENT_ABSENT_TIME 5
+#define MAX_SHAVING_TIME 5
+#define MAX_CLIENT_ABSENT_TIME 3
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
