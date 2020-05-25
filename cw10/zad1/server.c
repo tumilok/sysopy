@@ -29,11 +29,11 @@ void close_server()
 {
 	if (pthread_cancel(net_thread) == -1)
 	{
-		error_exit("Could not cancel net tread");
+		error_exit("could not cancel net tread");
 	}
 	if (pthread_cancel(ping_thread) == -1)
 	{
-		error_exit("Could not cancel ping thread");
+		error_exit("could not cancel ping thread");
 	}
 	close(local_socket);
 	unlink(socket_path);
@@ -50,9 +50,33 @@ int is_client(int i)
 	return i >= 0 && i < MAX_CLIENTS && clients[i].fd != -1;
 }
 
-void delete_game(game* game)
+void delete_game(game *game)
 {
 	free(game);
+}
+
+int get_free_idx()
+{
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if (!is_client(i))
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+int is_name_available(char *name)
+{
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if (is_client(i) && strcmp(name, clients[i].name) == 0)
+		{
+			return 0;
+		}
+	}
+	return 1;
 }
 
 void start_local()
@@ -111,11 +135,11 @@ void disconnect_client(int i)
 	}
 	if (shutdown(clients[i].fd, SHUT_RDWR) < 0)
 	{
-		error_exit("Could not disconnect client.");
+		error_exit("could not disconnect client.");
 	}
 	if (close(clients[i].fd) < 0)
 	{
-		error_exit("Could not close client.");
+		error_exit("could not close client.");
 	}
 }
 
@@ -181,30 +205,6 @@ void process_move(game* game)
 	}
 }
 
-int get_free_idx()
-{
-	for (int i = 0; i < MAX_CLIENTS; i++)
-	{
-		if (!is_client(i))
-		{
-			return i;
-		}
-	}
-	return -1;
-}
-
-int is_name_available(char *name)
-{
-	for (int i = 0; i < MAX_CLIENTS; i++)
-	{
-		if (is_client(i) && strcmp(name, clients[i].name) == 0)
-		{
-			return 0;
-		}
-	}
-	return 1;
-}
-
 void start_game(int id1, int id2)
 {
 	clients[id1].opponent_idx = id2;
@@ -213,8 +213,6 @@ void start_game(int id1, int id2)
 	int beg = rand() % 2;
 	clients[id1].symbol = (beg == 0) ? 'O' : 'X';
 	clients[id2].symbol = (beg == 0) ? 'X' : 'O';
-
-	//if message type is GAME_FOUND, then winner means only whose symbol it is
 
 	game *new_game = malloc(sizeof(game));
 	empty_game_board(new_game);
@@ -237,7 +235,7 @@ void connect_client(int fd)
 	int client_fd = accept(fd, NULL, NULL);
 	if (client_fd < 0)
 	{
-		error_exit("Could not accept client.");
+		error_exit("could not accept client.");
 	}
 
 	message msg = receive_message(client_fd);
@@ -311,7 +309,7 @@ void net_routine(void *arg)
 		printf("Polling...\n");
 		if (poll(poll_fds, MAX_CLIENTS + 2, -1) == -1)
 		{
-			error_exit("Poll failed.");
+			error_exit("poll failed.");
 		}
 
 		pthread_mutex_lock(&clients_mutex);

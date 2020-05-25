@@ -7,60 +7,76 @@ char *name;
 int server_fd;
 char symbol;
 int move;
-pthread_mutex_t move_mutex;
 
 void disconnect_from_server()
 {
 	printf("Disconnecting from server...\n");
-	send_message(server_fd, DISCONNECT, NULL, NULL);
-	if (shutdown(server_fd, SHUT_RDWR) < 0)
+	send_message(server_fd, DISCONNECT, NULL, name);
+	if (is_local)
 	{
-		error_exit("Could not shutdown.");
+		unlink(name);
 	}
-	if (close(server_fd) < 0)
-	{
-		error_exit("Could not close server descriptor.");
-	}
-	exit(EXIT_SUCCESS);
 }
 
 void sigint_handler(int signal)
 {
 	printf("Closing client...\n");
+	exit(EXIT_SUCCESS);
+}
+
+void terminate()
+{
 	disconnect_from_server();
 }
 
 void local_connect_to_server()
 {
 	struct sockaddr_un addr;
-
 	addr.sun_family = AF_UNIX;
 	strcpy(addr.sun_path, server);
 
-	server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	server_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (server_fd < 0)
 	{
-		error_exit("Socket to server failed.");
+		error_exit("socket to server failed.");
+	}
+
+	struct sockaddr_un c_addr;
+	c_addr.sun_family = AF_UNIX;
+	strcpy(c_addr.sun_path, name);
+
+	if (bind(server_fd, (struct sockaddr*) &c_addr, sizeof(c_addr)) < 0)
+	{
+		error_exit("bind failed.");
 	}
 
 	if (connect(server_fd, (struct sockaddr*) &addr, sizeof(addr)) < 0)
 	{
-		error_exit("Connect to server failed.");
+		error_exit("connect to server failed.");
 	}
 }
 
 void inet_connect_to_server()
 {
 	struct sockaddr_in addr;
-
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = inet_addr(server);
 
-	server_fd = socket(AF_INET, SOCK_STREAM, 0);
+	server_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (server_fd < 0)
 	{
 		error_exit("Socket to server failed.");
+	}
+
+	struct sockaddr_in c_addr;
+	c_addr.sin_family = AF_INET;
+	c_addr.sin_port = 0;
+	c_addr.sin_addr.s_addr = inet_addr(server);
+
+	if (bind(server_fd, (struct sockaddr*) &c_addr, sizeof(c_addr)) < 0)
+	{
+		error_exit("Bind failed.");
 	}
 
 	if (connect(server_fd, (struct sockaddr*) &addr, sizeof(addr)) < 0)
@@ -69,11 +85,12 @@ void inet_connect_to_server()
 	}
 }
 
+
 void print_gameboard(game *game)
 {
 	for (int i = 0; i < 9; i++)
 	{
-		printf("%c", game -> board[i]);
+		printf("%c",game -> board[i]);
 		if (i % 3 == 2)
 		{
 			printf("\n");
@@ -82,7 +99,7 @@ void print_gameboard(game *game)
 	printf("\n");
 }
 
-void concurrent_move(void* arg)
+void concurrent_move(void *arg)
 {
 	message* msg = (message*) arg;
 	printf("Enter your move: ");
@@ -101,11 +118,10 @@ void concurrent_move(void* arg)
 void make_move(message *msg)
 {
 	move = -1;
-
 	pthread_t move_thread;
 	pthread_create(&move_thread, NULL, (void*) concurrent_move, msg);
 
-	for( ; ; )
+	while (1)
 	{
 		if (move < 0 || move > 8 || msg->game.board[move] != '-')
 		{
@@ -114,7 +130,7 @@ void make_move(message *msg)
 			{
 				case PING:
 					printf("Received PING from server. Pinging back...\n");
-					send_message(server_fd, PING, NULL, NULL);
+					send_message(server_fd, PING, NULL, name);
 					break;
 				case DISCONNECT:
 					printf("Received DISCONNECT from server.\n");
@@ -136,18 +152,18 @@ void make_move(message *msg)
 	pthread_join(move_thread, NULL);
 	printf("Your move was: %d\n", move);
 
-	msg->game.board[move] = symbol;
+	msg -> game.board[move] = symbol;
 	print_gameboard(&msg->game);
 
-	send_message(server_fd, MOVE, &msg->game, NULL);
+	send_message(server_fd, MOVE, &msg->game, name);
 }
 
 void client_routine()
 {
-	for( ; ; )
+	while (1)
 	{
 		message msg = receive_message(server_fd);
-		switch(msg.message_type)
+		switch (msg.message_type)
 		{
 			case WAIT:
 				printf("Waiting for an opponent.\n");
@@ -176,7 +192,7 @@ void client_routine()
 				{
 					printf("YOU WON!\n");
 				}
-				else if(msg.game.winner == 'D')
+				else if (msg.game.winner == 'D')
 				{
 					printf("IT'S A DRAW!\n");
 				}
@@ -184,16 +200,14 @@ void client_routine()
 				{
 					printf("YOU LOST. REALLY?\n");
 				}
-				disconnect_from_server();
 				exit(EXIT_SUCCESS);
 				break;
 			case PING:
 				printf("Received PING from server. Pinging back...\n");
-				send_message(server_fd, PING, NULL, NULL);
+				send_message(server_fd, PING, NULL, name);
 				break;
 			case DISCONNECT:
 				printf("Received DISCONNECT from server.\n");
-				sigint_handler(SIGINT);
 				exit(EXIT_SUCCESS);
 			default: break;
 		}
@@ -206,7 +220,6 @@ int main(int argc, char *argv[])
 	{
 		error_exit("Wrong number of arguments. Expected: name, local/inet, server_address");
 	}
-
 	name = argv[1];
 
 	if (!strcmp(argv[2], "local"))
@@ -222,8 +235,6 @@ int main(int argc, char *argv[])
 		error_exit("Invalid arguments. Expected: name, local/inet, server_address");
 	}
 
-	srand(time(NULL));
-
 	if (is_local)
 	{
 		server = argv[3];
@@ -236,8 +247,10 @@ int main(int argc, char *argv[])
 		}
 		server = argv[3];
 		port = atoi(argv[4]);
+		printf("server IP: %s port: %d\n",server, port);
 	}
 
+	atexit(terminate);
 	signal(SIGINT, sigint_handler);
 
 	if (is_local)
@@ -269,16 +282,17 @@ int main(int argc, char *argv[])
 		printf("Connected to server\n");
 		client_routine();
 	}
+
 	if (msg.message_type == CONNECT_FAILED)
 	{
-		printf("connect failed. %s\n", msg.name);
+		printf("Connect failed. %s\n",msg.name);
 		if (shutdown(server_fd, SHUT_RDWR) < 0)
 		{
-			error_exit("could not shutdown.");
+			error_exit("Could not shutdown.");
 		}
 		if (close(server_fd) < 0)
 		{
-			error_exit("could not close server descriptor.");
+			error_exit("Could not close server descriptor.");
 		}
 		exit(EXIT_FAILURE);
 	}
