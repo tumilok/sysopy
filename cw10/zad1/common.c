@@ -22,7 +22,7 @@ void error_exit(char *msg)
 
 void send_message(int fd, message_type type, game *game, char *name)
 {
-	 char *message = calloc(MSG_SIZE, sizeof(char));
+	char *message = calloc(MSG_SIZE, sizeof(char));
 
 	if (type == CONNECT)
     {
@@ -56,7 +56,7 @@ message receive_message(int fd)
     }
 	if (count == 0)
     {
-		msg.message_type=DISCONNECT;
+		msg.message_type = DISCONNECT;
 		free(msg_buf);
 		return msg;
 	}
