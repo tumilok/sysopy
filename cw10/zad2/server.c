@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 
 	start_local();
 	start_inet();
-	printf("Started...\n");
+	printf("Server was successfully started\n");
 
 	if (pthread_create(&net_thread, NULL, (void*) net_routine, NULL) == -1)
 	{
